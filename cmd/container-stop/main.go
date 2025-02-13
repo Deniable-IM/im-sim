@@ -22,7 +22,7 @@ func main() {
 	}
 
 	for _, container := range containers {
-		fmt.Printf("Stopping container - Running IMAGE: %s\n", container.Image)
+		fmt.Printf("Stopping container - Running IMAGE: %v\n", container.Names)
 		noWait := 0
 		if err := cli.ContainerStop(ctx, container.ID, containertypes.StopOptions{Timeout: &noWait}); err != nil {
 			panic(err)
