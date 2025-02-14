@@ -1,22 +1,15 @@
 package main
 
 import (
-	"io"
-	"os"
-
-	"github.com/docker/docker/api/types"
+	dockerTypes "github.com/docker/docker/api/types"
 	dockerNetwork "github.com/docker/docker/api/types/network"
 
 	"deniable-im/network-simulation/pkg/client"
 	"deniable-im/network-simulation/pkg/container"
 	"deniable-im/network-simulation/pkg/image"
 	"deniable-im/network-simulation/pkg/network"
+	"deniable-im/network-simulation/pkg/types"
 )
-
-type Pair[A any, B any] struct {
-	fst A
-	snd B
-}
 
 func main() {
 	client, err := client.NewClient()
@@ -26,32 +19,22 @@ func main() {
 	defer client.Close()
 
 	// Build server image
-	serverImage := image.NewImage(*client, ".", types.ImageBuildOptions{
+	_, err = image.NewImage(*client, ".", dockerTypes.ImageBuildOptions{
 		Dockerfile: "Dockerfile.server",
 		Tags:       []string{"im-server"},
 	})
-
-	res, err := serverImage.ImageBuild()
 	if err != nil {
 		panic(err)
 	}
-	defer res.Body.Close()
-
-	io.Copy(os.Stdout, res.Body)
 
 	// Build client image
-	clientImage1 := image.NewImage(*client, ".", types.ImageBuildOptions{
+	_, err = image.NewImage(*client, ".", dockerTypes.ImageBuildOptions{
 		Dockerfile: "Dockerfile.client",
 		Tags:       []string{"im-client"},
 	})
-
-	res, err = clientImage1.ImageBuild()
 	if err != nil {
 		panic(err)
 	}
-	defer res.Body.Close()
-
-	io.Copy(os.Stdout, res.Body)
 
 	// Create network
 	networkOptions := network.Options{
@@ -74,13 +57,13 @@ func main() {
 	client2 := container.NewContainer(*client, "im-client", "im-client-2", nil)
 
 	// Run and connect containers to network
-	for _, connectPair := range []Pair[*container.Container, string]{
-		{server, "192.168.87.65"},
-		{client1, "192.168.87.70"},
-		{client2, "192.168.87.126"},
+	for _, connectPair := range []types.Pair[*container.Container, string]{
+		{Fst: server, Snd: "192.168.87.65"},
+		{Fst: client1, Snd: "192.168.87.70"},
+		{Fst: client2, Snd: "192.168.87.126"},
 	} {
-		container := connectPair.fst
-		ip := connectPair.snd
+		container := connectPair.Fst
+		ip := connectPair.Snd
 
 		if err := container.Start(); err != nil {
 			panic(err)
