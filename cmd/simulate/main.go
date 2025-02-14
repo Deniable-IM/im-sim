@@ -52,9 +52,33 @@ func main() {
 	network := network.NewNetwork(*client, "IMvlan", networkOptions)
 
 	// Create containers
-	server := container.NewContainer(*client, "im-server", "im-server", nil)
-	client1 := container.NewContainer(*client, "im-client", "im-client-1", nil)
-	client2 := container.NewContainer(*client, "im-client", "im-client-2", nil)
+	server, err := container.NewContainer(client, "im-server", "im-server", nil)
+	if err != nil {
+		panic(err)
+	}
+
+	client1, err := container.NewContainer(client, "im-client", "im-client-1", nil)
+	if err != nil {
+		panic(err)
+	}
+
+	client2, err := container.NewContainer(client, "im-client", "im-client-2", nil)
+	if err != nil {
+		panic(err)
+	}
+
+	// var clientContainers []*container.Container
+	// for i := range make([]int, 100) {
+	// 	clientContainer, err := container.NewContainer(
+	// 		client,
+	// 		"im-client",
+	// 		"im-client-"+string(i),
+	// 		nil)
+	// 	if err != nil {
+	// 		panic(err)
+	// 	}
+	// 	clientContainers = append(clientContainers, clientContainer)
+	// }
 
 	// Run and connect containers to network
 	for _, connectPair := range []types.Pair[*container.Container, string]{

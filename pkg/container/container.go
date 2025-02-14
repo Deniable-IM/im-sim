@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 
+	"deniable-im/network-simulation/pkg/types"
 	dockerContainer "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/network"
 	dockerNetwork "github.com/docker/docker/api/types/network"
@@ -21,13 +22,13 @@ type Options struct {
 }
 
 type Container struct {
-	Client client.Client
+	Client *client.Client
 	ID     string
 	Image  string
 	Name   string
 }
 
-func NewContainer(client client.Client, image string, name string, options *Options) *Container {
+func NewContainer(client *client.Client, image string, name string, options *Options) (*Container, error) {
 	if options == nil {
 		options = &Options{
 			&dockerContainer.Config{},
@@ -50,15 +51,27 @@ func NewContainer(client client.Client, image string, name string, options *Opti
 			log.Printf("Container %s is already in use.", name)
 			id, err := GetIdByName(client, name)
 			if err != nil {
-				panic(err)
+				return nil, fmt.Errorf("Failed to create container %w", err)
 			}
-			return &Container{Client: client, ID: id, Image: image, Name: name}
+			return &Container{Client: client, ID: id, Image: image, Name: name}, nil
 		} else {
-			panic(err)
+			return nil, fmt.Errorf("Failed to create container %w", err)
 		}
 	}
 
-	return &Container{Client: client, ID: res.ID, Image: image, Name: name}
+	return &Container{Client: client, ID: res.ID, Image: image, Name: name}, nil
+}
+
+func NewContainerSlice(client *client.Client, images []types.Pair[string, string], options *Options) ([]*Container, error) {
+	var containers []*Container
+	for _, image := range images {
+		container, err := NewContainer(client, image.Fst, image.Snd, options)
+		if err != nil {
+			return nil, fmt.Errorf("Failed to create contailer slice %w", err)
+		}
+		containers = append(containers, container)
+	}
+	return containers, nil
 }
 
 func (container *Container) Start() error {
@@ -97,7 +110,7 @@ func (container *Container) NetworkConnect(networkID string, ip string) error {
 	return nil
 }
 
-func GetIdByName(client client.Client, containerName string) (string, error) {
+func GetIdByName(client *client.Client, containerName string) (string, error) {
 	containers, err := client.Cli.ContainerList(client.Ctx, dockerContainer.ListOptions{All: true})
 	if err != nil {
 		return "", err
