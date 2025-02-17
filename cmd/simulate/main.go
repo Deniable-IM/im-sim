@@ -80,6 +80,11 @@ func main() {
 	// 	clientContainers = append(clientContainers, clientContainer)
 	// }
 
+    // /21
+    // Min x.x.0.1
+    // Max x.x.7.254
+    // Network reserver x.x.0.0
+    // Range (broadcast) reserved  x.x.0.255
 	// Run and connect containers to network
 	for _, connectPair := range []types.Pair[*container.Container, string]{
 		{Fst: server, Snd: "192.168.87.65"},
@@ -89,12 +94,13 @@ func main() {
 		container := connectPair.Fst
 		ip := connectPair.Snd
 
+        if err := container.NetworkConnect(network.ID, ip); err != nil {
+                panic(err)
+        }
+
 		if err := container.Start(); err != nil {
 			panic(err)
 		}
 
-		if err := container.NetworkConnect(network.ID, ip); err != nil {
-			panic(err)
-		}
 	}
 }
