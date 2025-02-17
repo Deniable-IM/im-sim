@@ -1,15 +1,14 @@
 package container
 
 import (
-	"deniable-im/network-simulation/pkg/client"
 	"errors"
 	"fmt"
 	"log"
 
+	"deniable-im/network-simulation/pkg/client"
 	"deniable-im/network-simulation/pkg/types"
 
 	dockerContainer "github.com/docker/docker/api/types/container"
-
 	dockerNetwork "github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/errdefs"
 	v1 "github.com/opencontainers/image-spec/specs-go/v1"

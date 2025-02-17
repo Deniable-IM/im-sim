@@ -19,7 +19,7 @@ func main() {
 	defer client.Close()
 
 	// Build server image
-	_, err = image.NewImage(*client, "./cmd/simulate/", dockerTypes.ImageBuildOptions{
+	_, err = image.NewImage(*client, "./cmd/signal-sim/", dockerTypes.ImageBuildOptions{
 		Dockerfile: "Dockerfile.server",
 		Tags:       []string{"im-server"},
 	})
@@ -28,7 +28,7 @@ func main() {
 	}
 
 	// Build client image
-	_, err = image.NewImage(*client, "./cmd/simulate/", dockerTypes.ImageBuildOptions{
+	_, err = image.NewImage(*client, "./cmd/signal-sim/", dockerTypes.ImageBuildOptions{
 		Dockerfile: "Dockerfile.client",
 		Tags:       []string{"im-client"},
 	})
