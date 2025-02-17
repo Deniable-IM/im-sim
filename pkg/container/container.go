@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"log"
 
-	"deniable-im/network-simulation/pkg/client"
-	"deniable-im/network-simulation/pkg/types"
+	"deniable-im/im-sim/pkg/client"
+	"deniable-im/im-sim/pkg/types"
 
 	dockerContainer "github.com/docker/docker/api/types/container"
 	dockerNetwork "github.com/docker/docker/api/types/network"

@@ -1,4 +1,4 @@
-module deniable-im/network-simulation
+module deniable-im/im-sim
 
 go 1.23.6
 

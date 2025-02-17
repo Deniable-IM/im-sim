@@ -1,7 +1,7 @@
 package image
 
 import (
-	"deniable-im/network-simulation/pkg/client"
+	"deniable-im/im-sim/pkg/client"
 	"fmt"
 	"io"
 	"os"

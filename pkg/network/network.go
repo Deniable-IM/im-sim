@@ -1,7 +1,7 @@
 package network
 
 import (
-	"deniable-im/network-simulation/pkg/client"
+	"deniable-im/im-sim/pkg/client"
 	"log"
 
 	"github.com/docker/docker/api/types/network"

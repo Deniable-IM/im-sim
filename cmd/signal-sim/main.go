@@ -4,11 +4,11 @@ import (
 	dockerTypes "github.com/docker/docker/api/types"
 	dockerNetwork "github.com/docker/docker/api/types/network"
 
-	"deniable-im/network-simulation/pkg/client"
-	"deniable-im/network-simulation/pkg/container"
-	"deniable-im/network-simulation/pkg/image"
-	"deniable-im/network-simulation/pkg/network"
-	"deniable-im/network-simulation/pkg/types"
+	"deniable-im/im-sim/pkg/client"
+	"deniable-im/im-sim/pkg/container"
+	"deniable-im/im-sim/pkg/image"
+	"deniable-im/im-sim/pkg/network"
+	"deniable-im/im-sim/pkg/types"
 )
 
 func main() {
@@ -94,12 +94,12 @@ func main() {
 		container := connectPair.Fst
 		ip := connectPair.Snd
 
-        if err := container.Start(); err != nil {
-                panic(err)
-        }
+		if err := container.Start(); err != nil {
+			panic(err)
+		}
 
-        if err := container.NetworkConnect(network.ID, ip); err != nil {
-                panic(err)
-        }
+		if err := container.NetworkConnect(network.ID, ip); err != nil {
+			panic(err)
+		}
 	}
 }
