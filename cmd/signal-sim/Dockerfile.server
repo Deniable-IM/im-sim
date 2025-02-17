@@ -1,0 +1,15 @@
+FROM alpine:3.20 AS build
+RUN apk update && apk add rust cargo protobuf-dev openssl-dev
+WORKDIR /signal
+COPY ./signal .
+# RUN unzip signal.zip
+RUN cargo build --bin server --release
+
+FROM alpine:3.20 AS production
+RUN apk update && apk add libgcc && \
+        rm -rf /var/cache/apk/*
+
+COPY --from=build ./signal/target/release/server .
+COPY ./signal/tls/server.crt ./signal/tls/server.key ./signal/tls/
+
+CMD ./server

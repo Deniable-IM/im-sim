@@ -1,0 +1,31 @@
+[package]
+name = "signal-server"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+tonic = "0.8"
+hyper = "0.14"
+hyper-openssl = "0.9"
+prost = "0.11"
+tokio = { version = "1.0", features = ["macros", "rt-multi-thread", "fs"] }
+tokio-stream = { version = "0.1", features = ["net"] }
+openssl = "0.10"
+tower = "0.4"
+async-stream = "0.3"
+futures = { version = "0.3", default-features = false }
+
+tonic-openssl = { git = "https://github.com/LucioFranco/tonic-openssl.git" }
+dotenv = "0.15.0"
+
+
+[build-dependencies]
+tonic-build = "0.8"
+
+[[bin]]
+name = "server"
+path = "src/main.rs"
+
+[[bin]]
+name = "client"
+path = "src/client.rs"
