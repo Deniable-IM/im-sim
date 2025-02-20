@@ -1,6 +1,8 @@
 package main
 
 import (
+	"fmt"
+
 	dockerTypes "github.com/docker/docker/api/types"
 	dockerNetwork "github.com/docker/docker/api/types/network"
 
@@ -12,14 +14,14 @@ import (
 )
 
 func main() {
-	client, err := client.NewClient()
+	dockerClient, err := client.NewClient()
 	if err != nil {
 		panic(err)
 	}
-	defer client.Close()
+	defer dockerClient.Close()
 
 	// Build server image
-	_, err = image.NewImage(*client, "./cmd/signal-sim/", dockerTypes.ImageBuildOptions{
+	_, err = image.NewImage(*dockerClient, "./cmd/signal-sim/", dockerTypes.ImageBuildOptions{
 		Dockerfile: "Dockerfile.server",
 		Tags:       []string{"im-server"},
 	})
@@ -28,7 +30,7 @@ func main() {
 	}
 
 	// Build client image
-	_, err = image.NewImage(*client, "./cmd/signal-sim/", dockerTypes.ImageBuildOptions{
+	_, err = image.NewImage(*dockerClient, "./cmd/signal-sim/", dockerTypes.ImageBuildOptions{
 		Dockerfile: "Dockerfile.client",
 		Tags:       []string{"im-client"},
 	})
@@ -36,69 +38,68 @@ func main() {
 		panic(err)
 	}
 
-	// Create network
+	// Create network that supports 2046 IPs
 	networkOptions := network.Options{
 		Driver: "macvlan",
 		IPAM: &dockerNetwork.IPAM{
 			Config: []dockerNetwork.IPAMConfig{
 				{
-					Subnet:  "192.168.87.0/24",
-					IPRange: "192.168.87.64/26",
-					Gateway: "192.168.87.1",
+					Subnet:  "10.10.240.0/20",
+					IPRange: "10.10.248.0/21",
+					Gateway: "10.10.248.1",
 				},
 			},
 		},
 	}
-	network := network.NewNetwork(*client, "IMvlan", networkOptions)
 
-	// Create containers
-	server, err := container.NewContainer(client, "im-server", "im-server", nil)
+	// Create network
+	networkIMvlan := network.NewNetwork(*dockerClient, "IMvlan", networkOptions)
+
+	// Setup Server
+	serverIP := "10.10.248.2"
+	server, err := container.NewContainer(
+		dockerClient,
+		"im-server",
+		"im-server",
+		&container.Options{
+			Network: networkIMvlan,
+			Ipv4:    &serverIP,
+		})
 	if err != nil {
 		panic(err)
 	}
 
-	client1, err := container.NewContainer(client, "im-client", "im-client-1", nil)
+	if err := server.Start(); err != nil {
+		panic(err)
+	}
+
+	// Setup Clients
+	var images []types.Pair[string, string]
+	for i := range [5]int{} {
+		images = append(images,
+			types.Pair[string, string]{
+				Fst: "im-client",
+				Snd: fmt.Sprintf("im-client-%d", i),
+			})
+	}
+
+	clientContainers, err := container.NewContainerSlice(dockerClient, images, nil)
 	if err != nil {
 		panic(err)
 	}
 
-	client2, err := container.NewContainer(client, "im-client", "im-client-2", nil)
+	reservedIP := []string{"10.10.248.2"}
+	clientContainers, err = container.AssignIP(clientContainers, reservedIP, networkOptions)
 	if err != nil {
 		panic(err)
 	}
 
-	// var clientContainers []*container.Container
-	// for i := range make([]int, 100) {
-	// 	clientContainer, err := container.NewContainer(
-	// 		client,
-	// 		"im-client",
-	// 		"im-client-"+string(i),
-	// 		nil)
-	// 	if err != nil {
-	// 		panic(err)
-	// 	}
-	// 	clientContainers = append(clientContainers, clientContainer)
-	// }
-
-	// /21
-	// Min x.x.0.1
-	// Max x.x.7.254
-	// Network reserver x.x.0.0
-	// Range (broadcast) reserved  x.x.0.255
-	// Run and connect containers to network
-	for _, connectPair := range []types.Pair[*container.Container, string]{
-		{Fst: server, Snd: "192.168.87.65"},
-		{Fst: client1, Snd: "192.168.87.70"},
-		{Fst: client2, Snd: "192.168.87.126"},
-	} {
-		container := connectPair.Fst
-		ip := connectPair.Snd
-
-		if err := container.Start(); err != nil {
+	for _, client := range clientContainers {
+		if err := client.Start(); err != nil {
 			panic(err)
 		}
 
-		if err := container.NetworkConnect(network.ID, ip); err != nil {
+		if err := client.NetworkConnect(networkIMvlan.ID, *client.Options.Ipv4); err != nil {
 			panic(err)
 		}
 	}

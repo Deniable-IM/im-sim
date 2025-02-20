@@ -2,7 +2,10 @@ module deniable-im/im-sim
 
 go 1.23.6
 
-require github.com/docker/docker v27.5.1+incompatible
+require (
+	github.com/docker/docker v27.5.1+incompatible
+	github.com/opencontainers/image-spec v1.1.0
+)
 
 require (
 	github.com/AdaLogics/go-fuzz-headers v0.0.0-20240806141605-e8a1dd7889d6 // indirect
@@ -24,7 +27,6 @@ require (
 	github.com/moby/term v0.5.2 // indirect
 	github.com/morikuni/aec v1.0.0 // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
-	github.com/opencontainers/image-spec v1.1.0 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/sirupsen/logrus v1.9.3 // indirect
 	go.opentelemetry.io/auto/sdk v1.1.0 // indirect

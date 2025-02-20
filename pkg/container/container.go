@@ -5,7 +5,10 @@ import (
 	"fmt"
 	"log"
 
+	"deniable-im/im-sim/internal/utils/ipv4"
+	"deniable-im/im-sim/internal/utils/set"
 	"deniable-im/im-sim/pkg/client"
+	"deniable-im/im-sim/pkg/network"
 	"deniable-im/im-sim/pkg/types"
 
 	dockerContainer "github.com/docker/docker/api/types/container"
@@ -17,6 +20,8 @@ import (
 var ErrNoNetworks = errors.New("container not connected to any network")
 
 type Options struct {
+	Network         *network.Network
+	Ipv4            *string
 	containerConfig *dockerContainer.Config
 	hostConfig      *dockerContainer.HostConfig
 	networkConfig   *dockerNetwork.NetworkingConfig
@@ -24,21 +29,44 @@ type Options struct {
 }
 
 type Container struct {
-	Client *client.Client
-	ID     string
-	Image  string
-	Name   string
+	Client  *client.Client
+	ID      string
+	Image   string
+	Name    string
+	Options *Options
 }
 
 func NewContainer(client *client.Client, image string, name string, options *Options) (*Container, error) {
 	if options == nil {
 		options = &Options{
-			&dockerContainer.Config{},
-			&dockerContainer.HostConfig{},
-			&dockerNetwork.NetworkingConfig{},
-			&v1.Platform{},
+			Network:         nil,
+			Ipv4:            nil,
+			containerConfig: &dockerContainer.Config{},
+			hostConfig:      &dockerContainer.HostConfig{},
+			networkConfig:   &dockerNetwork.NetworkingConfig{},
+			platform:        &v1.Platform{},
 		}
 	}
+	if options.containerConfig == nil {
+		options.containerConfig = &dockerContainer.Config{}
+	}
+	if options.hostConfig == nil {
+		options.hostConfig = &dockerContainer.HostConfig{}
+	}
+	if options.networkConfig == nil {
+		options.networkConfig = &dockerNetwork.NetworkingConfig{}
+	}
+	if options.platform == nil {
+		options.platform = &v1.Platform{}
+	}
+	if options.Network != nil && options.Ipv4 != nil {
+		options.networkConfig.EndpointsConfig = map[string]*dockerNetwork.EndpointSettings{
+			options.Network.Name: {
+				IPAddress: *options.Ipv4,
+			},
+		}
+	}
+
 	options.containerConfig.Image = image
 
 	res, err := client.Cli.ContainerCreate(
@@ -55,7 +83,7 @@ func NewContainer(client *client.Client, image string, name string, options *Opt
 			if err != nil {
 				return nil, fmt.Errorf("Failed to create container %w", err)
 			}
-			return &Container{Client: client, ID: id, Image: image, Name: name}, nil
+			return &Container{Client: client, ID: id, Image: image, Name: name, Options: options}, nil
 		} else {
 			return nil, fmt.Errorf("Failed to create container %w", err)
 		}
@@ -88,6 +116,13 @@ func (container *Container) Start() error {
 		dockerContainer.StartOptions{},
 	); err != nil {
 		return fmt.Errorf("Container start failed: %w", err)
+	}
+
+	opt := container.Options
+	if opt != nil && opt.Network != nil && opt.Ipv4 != nil {
+		if err := container.NetworkConnect(opt.Network.ID, *opt.Ipv4); err != nil {
+			return fmt.Errorf("Container start network connect failed: %w", err)
+		}
 	}
 
 	log.Printf("Container %s started.", container.Name)
@@ -168,4 +203,30 @@ func GetIdByName(client *client.Client, containerName string) (string, error) {
 	}
 
 	return "", fmt.Errorf("Container ID for %s not found", containerName)
+}
+
+func AssignIP(containers []*Container, reservedIP []string, options network.Options) ([]*Container, error) {
+	if len(options.IPAM.Config) != 1 {
+		return nil, fmt.Errorf("Network assign ip multiple IPAM configs")
+	}
+
+	gateway := options.IPAM.Config[0].Gateway
+	IPRange := options.IPAM.Config[0].IPRange
+
+	addressSet, err := ipv4.IPv4AddressSpace(IPRange)
+	if err != nil {
+		return nil, fmt.Errorf("Network assign ip address space: %w", err)
+	}
+
+	delete(addressSet, gateway)
+	for _, ip := range reservedIP {
+		delete(addressSet, ip)
+	}
+
+	for _, container := range containers {
+		ip := set.GetFirst(addressSet)
+		container.Options.Ipv4 = &ip
+	}
+
+	return containers, nil
 }
