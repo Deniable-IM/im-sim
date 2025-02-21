@@ -5,11 +5,10 @@ import (
 	"fmt"
 	"log"
 
+	"deniable-im/im-sim/internal/types"
 	"deniable-im/im-sim/internal/utils/ipv4"
-	"deniable-im/im-sim/internal/utils/set"
 	"deniable-im/im-sim/pkg/client"
 	"deniable-im/im-sim/pkg/network"
-	"deniable-im/im-sim/pkg/types"
 
 	dockerContainer "github.com/docker/docker/api/types/container"
 	dockerNetwork "github.com/docker/docker/api/types/network"
@@ -224,7 +223,7 @@ func AssignIP(containers []*Container, reservedIP []string, options network.Opti
 	}
 
 	for _, container := range containers {
-		ip := set.GetFirst(addressSet)
+		ip := addressSet.GetFirst()
 		container.Options.Ipv4 = &ip
 	}
 

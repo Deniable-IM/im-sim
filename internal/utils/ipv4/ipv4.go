@@ -7,10 +7,11 @@ import (
 	"strconv"
 	"strings"
 
+	"deniable-im/im-sim/internal/types"
 	"deniable-im/im-sim/internal/utils/fn"
 )
 
-func IPv4AddressSpace(iprange string) (map[string]struct{}, error) {
+func IPv4AddressSpace(iprange string) (types.Set[string], error) {
 	mask, err := strconv.Atoi(strings.Split(iprange, "/")[1])
 	if err != nil {
 		return nil, fmt.Errorf("Network assiged ip mask not valid: %w", err)
@@ -19,7 +20,7 @@ func IPv4AddressSpace(iprange string) (map[string]struct{}, error) {
 	highestAvailableIP := uint32(math.Pow(2, (32-float64(mask))) - 2)
 	lowestAvailableIP := IPv4StringToDecimal(strings.Split(iprange, "/")[0])
 
-	addressSet := make(map[string]struct{})
+	addressSet := make(types.Set[string])
 	for i := lowestAvailableIP; i < lowestAvailableIP+highestAvailableIP; i++ {
 		addressSet[IPv4DecimalToString(i)] = struct{}{}
 	}

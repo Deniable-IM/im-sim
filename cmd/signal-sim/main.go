@@ -6,11 +6,11 @@ import (
 	dockerTypes "github.com/docker/docker/api/types"
 	dockerNetwork "github.com/docker/docker/api/types/network"
 
+	"deniable-im/im-sim/internal/types"
 	"deniable-im/im-sim/pkg/client"
 	"deniable-im/im-sim/pkg/container"
 	"deniable-im/im-sim/pkg/image"
 	"deniable-im/im-sim/pkg/network"
-	"deniable-im/im-sim/pkg/types"
 )
 
 func main() {
