@@ -1,6 +1,6 @@
 module deniable-im/im-sim
 
-go 1.23.6
+go 1.24.0
 
 require (
 	github.com/docker/docker v27.5.1+incompatible
