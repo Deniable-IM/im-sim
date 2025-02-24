@@ -4,16 +4,17 @@ import (
 	"errors"
 	"fmt"
 	"log"
-
-	"deniable-im/im-sim/internal/types"
-	"deniable-im/im-sim/internal/utils/ipv4"
-	"deniable-im/im-sim/pkg/client"
-	"deniable-im/im-sim/pkg/network"
+	"sync"
 
 	dockerContainer "github.com/docker/docker/api/types/container"
 	dockerNetwork "github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/errdefs"
 	v1 "github.com/opencontainers/image-spec/specs-go/v1"
+
+	"deniable-im/im-sim/internal/types"
+	"deniable-im/im-sim/internal/utils/ipv4"
+	"deniable-im/im-sim/pkg/client"
+	"deniable-im/im-sim/pkg/network"
 )
 
 var ErrNoNetworks = errors.New("container not connected to any network")
@@ -21,10 +22,10 @@ var ErrNoNetworks = errors.New("container not connected to any network")
 type Options struct {
 	Network         *network.Network
 	Ipv4            *string
-	containerConfig *dockerContainer.Config
-	hostConfig      *dockerContainer.HostConfig
-	networkConfig   *dockerNetwork.NetworkingConfig
-	platform        *v1.Platform
+	ContainerConfig *dockerContainer.Config
+	HostConfig      *dockerContainer.HostConfig
+	NetworkConfig   *dockerNetwork.NetworkingConfig
+	Platform        *v1.Platform
 }
 
 type Container struct {
@@ -40,40 +41,40 @@ func NewContainer(client *client.Client, image string, name string, options *Opt
 		options = &Options{
 			Network:         nil,
 			Ipv4:            nil,
-			containerConfig: &dockerContainer.Config{},
-			hostConfig:      &dockerContainer.HostConfig{},
-			networkConfig:   &dockerNetwork.NetworkingConfig{},
-			platform:        &v1.Platform{},
+			ContainerConfig: &dockerContainer.Config{},
+			HostConfig:      &dockerContainer.HostConfig{},
+			NetworkConfig:   &dockerNetwork.NetworkingConfig{},
+			Platform:        &v1.Platform{},
 		}
 	}
-	if options.containerConfig == nil {
-		options.containerConfig = &dockerContainer.Config{}
+	if options.ContainerConfig == nil {
+		options.ContainerConfig = &dockerContainer.Config{}
 	}
-	if options.hostConfig == nil {
-		options.hostConfig = &dockerContainer.HostConfig{}
+	if options.HostConfig == nil {
+		options.HostConfig = &dockerContainer.HostConfig{}
 	}
-	if options.networkConfig == nil {
-		options.networkConfig = &dockerNetwork.NetworkingConfig{}
+	if options.NetworkConfig == nil {
+		options.NetworkConfig = &dockerNetwork.NetworkingConfig{}
 	}
-	if options.platform == nil {
-		options.platform = &v1.Platform{}
+	if options.Platform == nil {
+		options.Platform = &v1.Platform{}
 	}
 	if options.Network != nil && options.Ipv4 != nil {
-		options.networkConfig.EndpointsConfig = map[string]*dockerNetwork.EndpointSettings{
+		options.NetworkConfig.EndpointsConfig = map[string]*dockerNetwork.EndpointSettings{
 			options.Network.Name: {
 				IPAddress: *options.Ipv4,
 			},
 		}
 	}
 
-	options.containerConfig.Image = image
+	options.ContainerConfig.Image = image
 
 	res, err := client.Cli.ContainerCreate(
 		client.Ctx,
-		options.containerConfig,
-		options.hostConfig,
-		options.networkConfig,
-		options.platform,
+		options.ContainerConfig,
+		options.HostConfig,
+		options.NetworkConfig,
+		options.Platform,
 		name)
 	if err != nil {
 		if errors.Is(err, errdefs.Conflict(err)) {
@@ -88,18 +89,52 @@ func NewContainer(client *client.Client, image string, name string, options *Opt
 		}
 	}
 
-	return &Container{Client: client, ID: res.ID, Image: image, Name: name}, nil
+	return &Container{Client: client, ID: res.ID, Image: image, Name: name, Options: options}, nil
 }
 
 func NewContainerSlice(client *client.Client, images []types.Pair[string, string], options *Options) ([]*Container, error) {
-	var containers []*Container
+	const poolSize = 50
+	results := make(chan *Container, poolSize)
+	var wg sync.WaitGroup
+	errc := make(chan error, len(images))
+
 	for _, image := range images {
-		container, err := NewContainer(client, image.Fst, image.Snd, options)
-		if err != nil {
-			return nil, fmt.Errorf("Failed to create contailer slice %w", err)
-		}
+		wg.Add(1)
+
+		go func(image types.Pair[string, string]) {
+			defer wg.Done()
+
+			// Copy options
+			options := *options
+
+			container, err := NewContainer(client, image.Fst, image.Snd, &options)
+			if err != nil {
+				errc <- fmt.Errorf("Failed to create contailer slice %w", err)
+				return
+			}
+
+			results <- container
+			errc <- nil
+		}(image)
+	}
+
+	go func() {
+		wg.Wait()
+		close(results)
+		close(errc)
+	}()
+
+	var containers []*Container
+	for container := range results {
 		containers = append(containers, container)
 	}
+
+	for err := range errc {
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	return containers, nil
 }
 
@@ -119,7 +154,7 @@ func (container *Container) Start() error {
 
 	opt := container.Options
 	if opt != nil && opt.Network != nil && opt.Ipv4 != nil {
-		if err := container.NetworkConnect(opt.Network.ID, *opt.Ipv4); err != nil {
+		if err := container.NetworkConnect(opt.Network.ID); err != nil {
 			return fmt.Errorf("Container start network connect failed: %w", err)
 		}
 	}
@@ -128,7 +163,7 @@ func (container *Container) Start() error {
 	return nil
 }
 
-func (container *Container) NetworkConnect(networkID string, ip string) error {
+func (container *Container) NetworkConnect(networkID string) error {
 	_, err := container.Client.Cli.ContainerInspect(container.Client.Ctx, container.ID)
 	if err != nil {
 		return fmt.Errorf("Container network connect inspect failed: %w.", err)
@@ -141,7 +176,7 @@ func (container *Container) NetworkConnect(networkID string, ip string) error {
 
 	if err := container.Client.Cli.NetworkConnect(container.Client.Ctx, networkID, container.ID, &dockerNetwork.EndpointSettings{
 		IPAMConfig: &dockerNetwork.EndpointIPAMConfig{
-			IPv4Address: ip,
+			IPv4Address: *container.Options.Ipv4,
 		},
 	}); err != nil {
 		return fmt.Errorf("Container network connect failed: %w", err)
