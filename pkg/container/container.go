@@ -252,6 +252,10 @@ func AssignIP(containers []*Container, reservedIP []string, options network.Opti
 		return nil, fmt.Errorf("Network assign ip address space: %w", err)
 	}
 
+	if len(containers) > len(addressSet) {
+		return nil, fmt.Errorf("Network assign ip address space of %d is too low to fit %d containers.", len(addressSet), len(containers))
+	}
+
 	delete(addressSet, gateway)
 	for _, ip := range reservedIP {
 		delete(addressSet, ip)
