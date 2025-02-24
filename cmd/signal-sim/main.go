@@ -2,8 +2,10 @@ package main
 
 import (
 	"fmt"
+	"sync"
 
 	dockerTypes "github.com/docker/docker/api/types"
+	dockerContainer "github.com/docker/docker/api/types/container"
 	dockerNetwork "github.com/docker/docker/api/types/network"
 
 	"deniable-im/im-sim/internal/types"
@@ -64,6 +66,9 @@ func main() {
 		&container.Options{
 			Network: networkIMvlan,
 			Ipv4:    &serverIP,
+			HostConfig: &dockerContainer.HostConfig{
+				Runtime: "crun",
+			},
 		})
 	if err != nil {
 		panic(err)
@@ -75,7 +80,7 @@ func main() {
 
 	// Setup Clients
 	var images []types.Pair[string, string]
-	for i := range [5]int{} {
+	for i := range [100]int{} {
 		images = append(images,
 			types.Pair[string, string]{
 				Fst: "im-client",
@@ -83,7 +88,14 @@ func main() {
 			})
 	}
 
-	clientContainers, err := container.NewContainerSlice(dockerClient, images, nil)
+	clientContainers, err := container.NewContainerSlice(
+		dockerClient,
+		images,
+		&container.Options{
+			HostConfig: &dockerContainer.HostConfig{
+				Runtime: "crun",
+			},
+		})
 	if err != nil {
 		panic(err)
 	}
@@ -94,13 +106,26 @@ func main() {
 		panic(err)
 	}
 
-	for _, client := range clientContainers {
-		if err := client.Start(); err != nil {
-			panic(err)
-		}
+	var wg sync.WaitGroup
+	for i, client := range clientContainers {
+		wg.Add(1)
 
-		if err := client.NetworkConnect(networkIMvlan.ID, *client.Options.Ipv4); err != nil {
-			panic(err)
+		go func(c *container.Container) {
+			defer wg.Done()
+
+			if err := c.Start(); err != nil {
+				panic(err)
+			}
+
+			if err := c.NetworkConnect(networkIMvlan.ID); err != nil {
+				panic(err)
+			}
+		}(client)
+
+		if i%50 == 0 {
+			wg.Wait()
 		}
 	}
+
+	wg.Wait()
 }
