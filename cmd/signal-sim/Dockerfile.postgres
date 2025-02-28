@@ -1,0 +1,9 @@
+FROM postgres:latest AS build
+RUN apt-get update && apt-get install -y git
+RUN git clone -b sqlx-offline https://github.com/Deniable-IM/signal.git
+
+FROM postgres:latest AS production
+WORKDIR /docker-entrypoint-initdb.d
+COPY --from=build /signal/server/database/init.sql .
+
+CMD ["docker-entrypoint.sh", "postgres"]

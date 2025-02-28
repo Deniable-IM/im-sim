@@ -1,16 +1,42 @@
-FROM alpine:3.20 AS build
-RUN apk update && apk add rust cargo protobuf-dev openssl-dev
-WORKDIR /signal
-COPY ./signal .
-# RUN unzip signal.zip
-RUN cargo build --bin client --release
+FROM rust:1-alpine3.20 AS build 
+RUN apk update && apk add --no-cache \
+        git \
+        protobuf-dev \
+        openssl \
+        openssl-dev \
+        pkgconfig \
+        build-base \
+        musl-dev \
+        perl \
+        ncurses-dev \
+        zlib-dev \
+        zlib-static
+
+ENV OPENSSL_DIR=/usr
+ENV OPENSSL_LIB_DIR=/usr/lib
+ENV OPENSSL_INCLUDE_DIR=/usr/include
+
+RUN git clone -b sqlx-offline https://github.com/Deniable-IM/signal.git
+
+# Setup SQLite
+WORKDIR /signal/client/client_db
+RUN cargo install sqlx-cli
+RUN cargo sqlx database create -D sqlite://dev.db && cargo sqlx migrate run -D sqlite://dev.db
+
+# Build client
+COPY .client.env /signal/client/.env
+RUN cargo build --release
 
 FROM alpine:3.20 AS production
-RUN apk update && apk add libgcc && \
+RUN apk update && apk add --no-cache \
+        libgcc \
+        && \
         rm -rf /var/cache/apk/*
 
+WORKDIR /signal/client/
 COPY --from=build ./signal/target/release/client .
-COPY ./signal/tls/rootCA.crt ./signal/tls/
-COPY .env .
+COPY --from=build ./signal/client/client_db/ ./client_db/
+COPY --from=build ./signal/client/.env .
+COPY ./cert/rootCA.crt /signal/server/cert/
 
-CMD watch -n 10 ./client
+CMD tail -f /dev/null

@@ -1,15 +1,32 @@
-FROM alpine:3.20 AS build
-RUN apk update && apk add rust cargo protobuf-dev openssl-dev
-WORKDIR /signal
-COPY ./signal .
-# RUN unzip signal.zip
-RUN cargo build --bin server --release
+FROM rust:1-alpine3.20 AS build 
+RUN apk update && apk add --no-cache \
+        git \
+        protobuf-dev \
+        openssl \
+        openssl-dev \
+        pkgconfig \
+        build-base \
+        musl-dev 
+
+ENV OPENSSL_DIR=/usr
+ENV OPENSSL_LIB_DIR=/usr/lib
+ENV OPENSSL_INCLUDE_DIR=/usr/include
+
+RUN git clone -b sqlx-offline https://github.com/Deniable-IM/signal.git
+
+# Enable SQLX offline DB compilation
+ENV SQLX_OFFLINE=true
+
+# Build server
+WORKDIR /signal/server
+RUN cargo build --release
 
 FROM alpine:3.20 AS production
 RUN apk update && apk add libgcc && \
         rm -rf /var/cache/apk/*
 
 COPY --from=build ./signal/target/release/server .
-COPY ./signal/tls/server.crt ./signal/tls/server.key ./signal/tls/
+COPY ./cert/server.crt ./cert/server.key /cert/
+COPY .server.env .env
 
-CMD ./server
+CMD ["sh", "-c", "while true; do exec ./server; sleep 5; done"]
