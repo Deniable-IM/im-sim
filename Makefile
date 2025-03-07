@@ -9,4 +9,5 @@ signal:
 reset:
 	make stop 
 	sudo docker network rm IMvlan
+	sudo docker network rm backend
 	

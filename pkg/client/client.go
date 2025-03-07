@@ -21,7 +21,7 @@ func NewClient() (*Client, error) {
 	return &Client{ctx, cli}, nil
 }
 
-func (client Client) Close() error {
+func (client *Client) Close() error {
 	if client.Cli != nil {
 		return client.Cli.Close()
 	}

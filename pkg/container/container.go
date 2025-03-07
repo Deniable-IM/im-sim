@@ -9,7 +9,6 @@ import (
 	dockerContainer "github.com/docker/docker/api/types/container"
 	dockerNetwork "github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/errdefs"
-	v1 "github.com/opencontainers/image-spec/specs-go/v1"
 
 	"deniable-im/im-sim/internal/types"
 	"deniable-im/im-sim/internal/utils/ipv4"
@@ -18,15 +17,6 @@ import (
 )
 
 var ErrNoNetworks = errors.New("container not connected to any network")
-
-type Options struct {
-	Network         *network.Network
-	Ipv4            *string
-	ContainerConfig *dockerContainer.Config
-	HostConfig      *dockerContainer.HostConfig
-	NetworkConfig   *dockerNetwork.NetworkingConfig
-	Platform        *v1.Platform
-}
 
 type Container struct {
 	Client  *client.Client
@@ -38,36 +28,10 @@ type Container struct {
 
 func NewContainer(client *client.Client, image string, name string, options *Options) (*Container, error) {
 	if options == nil {
-		options = &Options{
-			Network:         nil,
-			Ipv4:            nil,
-			ContainerConfig: &dockerContainer.Config{},
-			HostConfig:      &dockerContainer.HostConfig{},
-			NetworkConfig:   &dockerNetwork.NetworkingConfig{},
-			Platform:        &v1.Platform{},
-		}
-	}
-	if options.ContainerConfig == nil {
-		options.ContainerConfig = &dockerContainer.Config{}
-	}
-	if options.HostConfig == nil {
-		options.HostConfig = &dockerContainer.HostConfig{}
-	}
-	if options.NetworkConfig == nil {
-		options.NetworkConfig = &dockerNetwork.NetworkingConfig{}
-	}
-	if options.Platform == nil {
-		options.Platform = &v1.Platform{}
-	}
-	if options.Network != nil && options.Ipv4 != nil {
-		options.NetworkConfig.EndpointsConfig = map[string]*dockerNetwork.EndpointSettings{
-			options.Network.Name: {
-				IPAddress: *options.Ipv4,
-			},
-		}
+		options = NewOptions()
 	}
 
-	options.ContainerConfig.Image = image
+	options.SetConfigs(image, name)
 
 	res, err := client.Cli.ContainerCreate(
 		client.Ctx,
@@ -81,11 +45,11 @@ func NewContainer(client *client.Client, image string, name string, options *Opt
 			log.Printf("Container %s is already in use.", name)
 			id, err := GetIdByName(client, name)
 			if err != nil {
-				return nil, fmt.Errorf("Failed to create container %w", err)
+				return nil, fmt.Errorf("Failed to create container conflict: %w.", err)
 			}
 			return &Container{Client: client, ID: id, Image: image, Name: name, Options: options}, nil
 		} else {
-			return nil, fmt.Errorf("Failed to create container %w", err)
+			return nil, fmt.Errorf("Failed to create container: %w.", err)
 		}
 	}
 
@@ -104,12 +68,11 @@ func NewContainerSlice(client *client.Client, images []types.Pair[string, string
 		go func(image types.Pair[string, string]) {
 			defer wg.Done()
 
-			// Copy options
-			options := *options
+			options := options.DeepCopy()
 
-			container, err := NewContainer(client, image.Fst, image.Snd, &options)
+			container, err := NewContainer(client, image.Fst, image.Snd, options)
 			if err != nil {
-				errc <- fmt.Errorf("Failed to create contailer slice %w", err)
+				errc <- fmt.Errorf("Failed to create contailer slice: %w.", err)
 				return
 			}
 
@@ -152,37 +115,35 @@ func (container *Container) Start() error {
 		return fmt.Errorf("Container start failed: %w", err)
 	}
 
-	opt := container.Options
-	if opt != nil && opt.Network != nil && opt.Ipv4 != nil {
-		if err := container.NetworkConnect(opt.Network.ID); err != nil {
+	connections := container.Options.Connections
+	for _, conn := range connections {
+		if err := container.NetworkConnect(*conn.Network); err != nil {
 			return fmt.Errorf("Container start network connect failed: %w", err)
 		}
 	}
-
 	log.Printf("Container %s started.", container.Name)
 	return nil
 }
 
-func (container *Container) NetworkConnect(networkID string) error {
+func (container *Container) NetworkConnect(network network.Network) error {
 	_, err := container.Client.Cli.ContainerInspect(container.Client.Ctx, container.ID)
 	if err != nil {
 		return fmt.Errorf("Container network connect inspect failed: %w.", err)
 	}
 
-	err = container.PruneRedundantNetworks()
-	if err != nil && !errors.Is(err, ErrNoNetworks) {
-		return fmt.Errorf("Container network connect prune failed: %w", err)
+	// Update IPv4 if assigned later
+	endPointSettings := container.Options.NetworkConfig.EndpointsConfig[network.Name]
+	conn := container.Options.Connections[network.Name]
+	if endPointSettings != nil && conn != nil && conn.IPv4 != nil {
+		endPointSettings.IPAMConfig = &dockerNetwork.EndpointIPAMConfig{}
+		endPointSettings.IPAMConfig.IPv4Address = *conn.IPv4
 	}
 
-	if err := container.Client.Cli.NetworkConnect(container.Client.Ctx, networkID, container.ID, &dockerNetwork.EndpointSettings{
-		IPAMConfig: &dockerNetwork.EndpointIPAMConfig{
-			IPv4Address: *container.Options.Ipv4,
-		},
-	}); err != nil {
+	if err := container.Client.Cli.NetworkConnect(container.Client.Ctx, network.ID, container.ID, endPointSettings); err != nil {
 		return fmt.Errorf("Container network connect failed: %w", err)
 	}
 
-	log.Printf("Container %s connected to network %s.", container.Name, networkID)
+	log.Printf("Container %s connected to network %s.", container.Name, network.Name)
 	return nil
 }
 
@@ -239,17 +200,18 @@ func GetIdByName(client *client.Client, containerName string) (string, error) {
 	return "", fmt.Errorf("Container ID for %s not found", containerName)
 }
 
-func AssignIP(containers []*Container, reservedIP []string, options network.Options) ([]*Container, error) {
-	if len(options.IPAM.Config) != 1 {
-		return nil, fmt.Errorf("Network assign ip multiple IPAM configs")
+func AssignIP(containers []*Container, reservedIP []string, net network.Network) ([]*Container, error) {
+	ipam := net.Options.IPAM
+	if len(ipam.Config) != 1 {
+		return nil, fmt.Errorf("Network assign ip need one IPAM config. Got %d.", len(ipam.Config))
 	}
 
-	gateway := options.IPAM.Config[0].Gateway
-	IPRange := options.IPAM.Config[0].IPRange
+	gateway := ipam.Config[0].Gateway
+	IPRange := ipam.Config[0].IPRange
 
 	addressSet, err := ipv4.IPv4AddressSpace(IPRange)
 	if err != nil {
-		return nil, fmt.Errorf("Network assign ip address space: %w", err)
+		return nil, fmt.Errorf("Network assign ip address space: %w.", err)
 	}
 
 	if len(containers) > len(addressSet) {
@@ -262,8 +224,8 @@ func AssignIP(containers []*Container, reservedIP []string, options network.Opti
 	}
 
 	for _, container := range containers {
-		ip := addressSet.GetFirst()
-		container.Options.Ipv4 = &ip
+		ip := addressSet.Pop()
+		container.Options.Connections[net.Name].IPv4 = &ip
 	}
 
 	return containers, nil

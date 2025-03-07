@@ -12,13 +12,13 @@ type Options struct {
 }
 
 type Network struct {
-	client  client.Client
+	client  *client.Client
 	Name    string
 	ID      string
-	options Options
+	Options Options
 }
 
-func NewNetwork(client client.Client, name string, options Options) *Network {
+func NewNetwork(client *client.Client, name string, options Options) *Network {
 	inspectRes, err := client.Cli.NetworkInspect(client.Ctx, name, network.InspectOptions{})
 	if err != nil {
 		createRes, err := client.Cli.NetworkCreate(client.Ctx, name, network.CreateOptions{
@@ -28,10 +28,14 @@ func NewNetwork(client client.Client, name string, options Options) *Network {
 		if err != nil {
 			panic(err)
 		} else {
-			return &Network{client: client, Name: name, ID: createRes.ID, options: options}
+			return &Network{client: client, Name: name, ID: createRes.ID, Options: options}
 		}
 	}
 
 	log.Printf("Network %s already exists", inspectRes.Name)
-	return &Network{client: client, Name: inspectRes.Name, ID: inspectRes.ID, options: options}
+	return &Network{client: client, Name: inspectRes.Name, ID: inspectRes.ID, Options: options}
+}
+
+func (network *Network) GetConnection() *Connection {
+	return &Connection{Network: network, IPv4: nil}
 }

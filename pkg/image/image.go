@@ -27,8 +27,8 @@ type Image struct {
 	Options  *Options
 }
 
-func NewImage(client client.Client, buildCtx string, options *Options) (*Image, error) {
-	image := &Image{&client, buildCtx, options}
+func NewImage(client *client.Client, buildCtx string, options *Options) (*Image, error) {
+	image := &Image{client, buildCtx, options}
 	if options.BuildOpt != nil {
 		err := image.imageBuild(*options.BuildOpt)
 		if err != nil {
