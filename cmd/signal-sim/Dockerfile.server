@@ -12,7 +12,7 @@ ENV OPENSSL_DIR=/usr
 ENV OPENSSL_LIB_DIR=/usr/lib
 ENV OPENSSL_INCLUDE_DIR=/usr/include
 
-RUN git clone -b sqlx-offline https://github.com/Deniable-IM/signal.git
+RUN git clone https://github.com/Deniable-IM/signal.git
 
 # Enable SQLX offline DB compilation
 ENV SQLX_OFFLINE=true
@@ -29,4 +29,4 @@ COPY --from=build ./signal/target/release/server .
 COPY ./cert/server.crt ./cert/server.key /cert/
 COPY .server.env .env
 
-CMD ["sh", "-c", "while true; do exec ./server; sleep 5; done"]
+CMD ["sh", "-c", "while true; do ./server; sleep 5; done"]
