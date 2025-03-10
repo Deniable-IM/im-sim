@@ -16,6 +16,13 @@ mv daemon.json /etc/docker/
 
 ## Commands
 
+### Create certificates
+Create the certificates used by clients and server before building
+```bash
+cd cmd/signal-sim/cert/
+./generate_cert.sh
+```
+
 ### Run signal protocol simulation
 Run a simulation with N clients
 ```bash
