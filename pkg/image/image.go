@@ -1,14 +1,14 @@
 package image
 
 import (
-	"deniable-im/im-sim/pkg/client"
 	"fmt"
-	"io"
-	"os"
 
 	"github.com/docker/docker/api/types"
 	dockerImage "github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/pkg/archive"
+
+	"deniable-im/im-sim/internal/logger"
+	"deniable-im/im-sim/pkg/client"
 )
 
 type PullOptions struct {
@@ -58,7 +58,7 @@ func (image *Image) imageBuild(buildOpt types.ImageBuildOptions) error {
 	}
 	defer res.Body.Close()
 
-	io.Copy(os.Stdout, res.Body)
+	logger.LogImageBuild(res.Body)
 	return nil
 }
 
@@ -67,10 +67,11 @@ func (image *Image) imagePull(refStr string, pullOpt *dockerImage.PullOptions) e
 		pullOpt = &dockerImage.PullOptions{}
 	}
 
-	_, err := image.client.Cli.ImagePull(image.client.Ctx, refStr, *pullOpt)
+	res, err := image.client.Cli.ImagePull(image.client.Ctx, refStr, *pullOpt)
 	if err != nil {
 		return fmt.Errorf("Faild pull of image: %w.", err)
 	}
 
+	logger.LogImagePull(res)
 	return nil
 }
