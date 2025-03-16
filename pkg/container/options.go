@@ -1,12 +1,13 @@
 package container
 
 import (
-	"log"
+	"fmt"
 
 	dockerContainer "github.com/docker/docker/api/types/container"
 	dockerNetwork "github.com/docker/docker/api/types/network"
 	v1 "github.com/opencontainers/image-spec/specs-go/v1"
 
+	"deniable-im/im-sim/internal/logger"
 	"deniable-im/im-sim/pkg/network"
 )
 
@@ -33,7 +34,7 @@ func (options *Options) SetConfigs(image string, name string) {
 		options.ContainerConfig = &dockerContainer.Config{}
 		options.ContainerConfig.Image = image
 	} else {
-		log.Printf("ContainerConfig explicit set to overwrite image in container: %s.", image, name)
+		logger.LogContainerOptions(fmt.Sprintf("[+] ContainerConfig explicit set to overwrite image in container: %s", image, name))
 	}
 
 	if options.HostConfig == nil {
@@ -55,7 +56,7 @@ func (options *Options) SetConfigs(image string, name string) {
 			options.NetworkConfig.EndpointsConfig[networkName] = endPointSettings
 		}
 	} else {
-		log.Printf("NetworkConfig explicit set to overwrite in container %s.", name)
+		logger.LogContainerOptions(fmt.Sprintf("[+] NetworkConfig explicit set to overwrite in container %s", name))
 	}
 
 	if options.Platform == nil {

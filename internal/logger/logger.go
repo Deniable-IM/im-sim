@@ -4,29 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"os"
-	"os/signal"
 	"strings"
-	"syscall"
-
-	"golang.org/x/term"
 )
-
-func getTerminalSize() (int, int) {
-	width, height, err := term.GetSize(int(os.Stdout.Fd()))
-	if err != nil {
-		return 80, 20
-	}
-	return width, height
-}
-
-func fitTerminal(str string) string {
-	width, _ := getTerminalSize()
-	if len(str) > width {
-		str = str[:width-2]
-	}
-	return str
-}
 
 type imageBuildStream struct {
 	Stream string `json:"stream"`
@@ -40,20 +19,19 @@ type imagePullStream struct {
 	Id             string `json:"id"`
 }
 
+type containerSliceStream struct {
+	Status string `json:"status"`
+	Total  int    `json:"total"`
+	Image  string `json:"image"`
+	Name   string `json:"name"`
+}
+
 func LogImageBuild(reader io.Reader) {
 	decoder := json.NewDecoder(reader)
 
 	fmt.Print(HideCursor)
 	defer fmt.Print(ShowCursor)
-
-	// Restore cursor on forced exit
-	sigc := make(chan os.Signal, 1)
-	signal.Notify(sigc, os.Interrupt, syscall.SIGTERM)
-	go func() {
-		<-sigc
-		fmt.Print(ShowCursor)
-		os.Exit(1)
-	}()
+	handleForcedExit()
 
 	for {
 		var msg imageBuildStream
@@ -66,16 +44,16 @@ func LogImageBuild(reader io.Reader) {
 		stream := msg.Stream
 		if stream != "" {
 			if strings.HasPrefix(stream, "Step") {
-				fmt.Print(ClearEntierLine)
+				fmt.Print(ClearEntireLine)
 				fmt.Print(PlumForeground.Set(fitTerminal(stream)))
 			} else if strings.HasPrefix(stream, "Successfully built") {
 			} else if strings.HasPrefix(stream, "Successfully tagged") {
-				fmt.Print(ClearEntierLine)
+				fmt.Print(ClearEntireLine)
 				fmt.Print(BlueForeground.Set(fitTerminal(stream)))
 				fmt.Print("\n\n")
 			} else if strings.Contains(stream, "--->") {
 				fmt.Print(MoveCursorDown)
-				fmt.Print(ClearEntierLine)
+				fmt.Print(ClearEntireLine)
 				fmt.Printf(GreyForeground.Set(fitTerminal(stream)))
 				fmt.Print(MoveCursorUp)
 				fmt.Print(MoveCursorUp)
@@ -91,19 +69,10 @@ func LogImagePull(reader io.Reader) {
 
 	fmt.Print(HideCursor)
 	defer fmt.Print(ShowCursor)
-
-	// Restore cursor on forced exit
-	sigc := make(chan os.Signal, 1)
-	signal.Notify(sigc, os.Interrupt, syscall.SIGTERM)
-	go func() {
-		<-sigc
-		fmt.Print(ShowCursor)
-		os.Exit(1)
-	}()
+	handleForcedExit()
 
 	var imageName string
 	progressMap := make(map[string]string)
-
 	for {
 		var msg imagePullStream
 		if err := decoder.Decode(&msg); err != nil {
@@ -115,7 +84,7 @@ func LogImagePull(reader io.Reader) {
 		if msg.Progress != "" {
 			for range progressMap {
 				fmt.Print(MoveCursorUp)
-				fmt.Print(ClearEntierLine)
+				fmt.Print(ClearEntireLine)
 			}
 
 			progressMap[msg.Id] = msg.Progress
@@ -131,4 +100,87 @@ func LogImagePull(reader io.Reader) {
 	}
 
 	fmt.Print(BlueForeground.Set(fmt.Sprintf("Pulled: %s\n", imageName)))
+}
+
+func LogContainerSlice(reader io.Reader) {
+	decoder := json.NewDecoder(reader)
+
+	fmt.Print(HideCursor)
+	defer fmt.Print(ShowCursor)
+	handleForcedExit()
+
+	progress := 0
+	for {
+		var stream containerSliceStream
+		if err := decoder.Decode(&stream); err != nil {
+			if err == io.EOF {
+				break
+			}
+		}
+
+		if stream.Status == "created" {
+			finished := stream.Total
+			progress = progress + 1
+
+			title := fmt.Sprintf("Creating %s containers ", stream.Image)
+			statusBar := fmt.Sprintf("%s %s\r", title, StatusBar(progress, finished, 50))
+
+			if progress < finished {
+				fmt.Print(ClearEntireLine)
+				fmt.Printf("%s\r", PlumForeground.Set(statusBar))
+			} else {
+				fmt.Print(ClearEntireLine)
+				fmt.Printf("%s\n", BlueForeground.Set(statusBar))
+			}
+		}
+	}
+}
+
+func LogStartContainers(reader io.Reader) {
+	decoder := json.NewDecoder(reader)
+
+	fmt.Print(HideCursor)
+	defer fmt.Print(ShowCursor)
+	handleForcedExit()
+
+	progress := 0
+	for {
+		var stream containerSliceStream
+		if err := decoder.Decode(&stream); err != nil {
+			if err == io.EOF {
+				break
+			}
+		}
+
+		if stream.Status == "started" {
+			finished := stream.Total
+			progress = progress + 1
+
+			title := fmt.Sprintf("Starting %s containers ", stream.Image)
+			statusBar := fmt.Sprintf("%s %s\r", title, StatusBar(progress, finished, 50))
+
+			if progress < finished {
+				fmt.Print(ClearEntireLine)
+				fmt.Printf("%s\r", PlumForeground.Set(statusBar))
+			} else {
+				fmt.Print(ClearEntireLine)
+				fmt.Printf("%s\n", BlueForeground.Set(statusBar))
+			}
+		}
+	}
+}
+
+func LogContainerStarted(string string) {
+	fmt.Printf("%s\n", BlueForeground.Set(string))
+}
+
+func LogContainerOptions(string string) {
+	fmt.Printf("%s\n", GreyForeground.Set(string))
+}
+
+func LogNetworkConnect(string string) {
+	fmt.Print("\n")
+	fmt.Print(ClearEntireLine)
+	fmt.Printf("%s\r", GreyForeground.Set(string))
+	fmt.Print(MoveCursorUp)
 }
