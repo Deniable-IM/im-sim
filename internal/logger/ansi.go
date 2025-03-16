@@ -7,7 +7,7 @@ type Function string
 const (
 	SaveCursorPos    Function = "\0337"
 	RestoreCursorPos Function = "\0338"
-	ClearEntierLine  Function = "\033[2K"
+	ClearEntireLine  Function = "\033[2K"
 	MoveCursorUp     Function = "\033[A"
 	MoveCursorDown   Function = "\033[B"
 	HideCursor       Function = "\033[?25l"
