@@ -3,6 +3,7 @@ package container
 import (
 	"errors"
 	"fmt"
+	"io"
 	"log"
 	"sync"
 
@@ -10,6 +11,7 @@ import (
 	dockerNetwork "github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/errdefs"
 
+	"deniable-im/im-sim/internal/logger"
 	"deniable-im/im-sim/internal/types"
 	"deniable-im/im-sim/internal/utils/ipv4"
 	"deniable-im/im-sim/pkg/client"
@@ -42,7 +44,7 @@ func NewContainer(client *client.Client, image string, name string, options *Opt
 		name)
 	if err != nil {
 		if errors.Is(err, errdefs.Conflict(err)) {
-			log.Printf("Container %s is already in use.", name)
+			// Container is already in use! Return it
 			id, err := GetIdByName(client, name)
 			if err != nil {
 				return nil, fmt.Errorf("Failed to create container conflict: %w.", err)
@@ -57,10 +59,17 @@ func NewContainer(client *client.Client, image string, name string, options *Opt
 }
 
 func NewContainerSlice(client *client.Client, images []types.Pair[string, string], options *Options) ([]*Container, error) {
+	imagesLen := len(images)
+
 	const poolSize = 50
 	results := make(chan *Container, poolSize)
 	var wg sync.WaitGroup
 	errc := make(chan error, len(images))
+
+	reader, writer := io.Pipe()
+	go func() {
+		logger.LogContainerSlice(reader)
+	}()
 
 	for _, image := range images {
 		wg.Add(1)
@@ -77,6 +86,14 @@ func NewContainerSlice(client *client.Client, images []types.Pair[string, string
 			}
 
 			results <- container
+
+			log := fmt.Sprintf(
+				`{"status": "created", "total": %d, "image": "%s", "name": "%s"}`,
+				imagesLen,
+				image.Fst,
+				image.Snd)
+			writer.Write([]byte(log))
+
 			errc <- nil
 		}(image)
 	}
@@ -85,6 +102,7 @@ func NewContainerSlice(client *client.Client, images []types.Pair[string, string
 		wg.Wait()
 		close(results)
 		close(errc)
+		writer.Close()
 	}()
 
 	var containers []*Container
@@ -98,10 +116,56 @@ func NewContainerSlice(client *client.Client, images []types.Pair[string, string
 		}
 	}
 
+	reader.Close()
+
 	return containers, nil
 }
 
-func (container *Container) Start() error {
+func StartContainers(containers []*Container) {
+	containersLen := len(containers)
+	const poolSize = 50
+	var wg sync.WaitGroup
+	errc := make(chan error, len(containers))
+
+	reader, writer := io.Pipe()
+	go func() {
+		logger.LogStartContainers(reader)
+	}()
+
+	for _, container := range containers {
+		wg.Add(1)
+
+		go func(c *Container) {
+			defer wg.Done()
+			if err := c.start(); err != nil {
+				errc <- err
+			}
+
+			log := fmt.Sprintf(
+				`{"status": "started", "total": %d, "image": "%s", "name": "%s"}`,
+				containersLen,
+				container.Image,
+				container.Name)
+			writer.Write([]byte(log))
+		}(container)
+	}
+
+	go func() {
+		wg.Wait()
+		close(errc)
+		writer.Close()
+	}()
+
+	for err := range errc {
+		if err != nil {
+			panic(err)
+		}
+	}
+
+	reader.Close()
+}
+
+func (container *Container) start() error {
 	err := container.PruneRedundantNetworks()
 	if err != nil && !errors.Is(err, ErrNoNetworks) {
 		return fmt.Errorf("Container start prune failed: %w", err)
@@ -121,7 +185,14 @@ func (container *Container) Start() error {
 			return fmt.Errorf("Container start network connect failed: %w", err)
 		}
 	}
-	log.Printf("Container %s started.", container.Name)
+	return nil
+}
+
+func (container *Container) Start() error {
+	if err := container.start(); err != nil {
+		return err
+	}
+	logger.LogContainerStarted(fmt.Sprintf("Container %s started.", container.Name))
 	return nil
 }
 
@@ -143,7 +214,7 @@ func (container *Container) NetworkConnect(network network.Network) error {
 		return fmt.Errorf("Container network connect failed: %w", err)
 	}
 
-	log.Printf("Container %s connected to network %s.", container.Name, network.Name)
+	logger.LogNetworkConnect(fmt.Sprintf("[+] Container %s connected to network %s", container.Name, network.Name))
 	return nil
 }
 

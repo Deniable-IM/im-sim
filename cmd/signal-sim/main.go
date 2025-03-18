@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"sync"
 
 	dockerTypes "github.com/docker/docker/api/types"
 	dockerContainer "github.com/docker/docker/api/types/container"
@@ -198,23 +197,5 @@ func main() {
 		panic(err)
 	}
 
-	var wg sync.WaitGroup
-	for i, client := range clientContainers {
-		wg.Add(1)
-
-		go func(c *container.Container) {
-			defer wg.Done()
-
-			if err := c.Start(); err != nil {
-				panic(err)
-			}
-
-		}(client)
-
-		if i%50 == 0 {
-			wg.Wait()
-		}
-	}
-
-	wg.Wait()
+	container.StartContainers(clientContainers)
 }
