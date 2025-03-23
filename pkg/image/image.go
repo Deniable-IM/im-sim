@@ -71,6 +71,7 @@ func (image *Image) imagePull(refStr string, pullOpt *dockerImage.PullOptions) e
 	if err != nil {
 		return fmt.Errorf("Faild pull of image: %w.", err)
 	}
+	defer res.Close()
 
 	logger.LogImagePull(res)
 	return nil
