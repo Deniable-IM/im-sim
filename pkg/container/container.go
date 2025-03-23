@@ -301,3 +301,28 @@ func AssignIP(containers []*Container, reservedIP []string, net network.Network)
 
 	return containers, nil
 }
+
+func (container *Container) Exec(commands []string) error {
+	options := dockerContainer.ExecOptions{
+		Cmd:          commands,
+		AttachStdout: true,
+		AttachStderr: true,
+		AttachStdin:  false,
+		Detach:       true,
+		Tty:          false,
+	}
+
+	execRes, err := container.Client.Cli.ContainerExecCreate(container.Client.Ctx, container.ID, options)
+	if err != nil {
+		return fmt.Errorf("Container Exec failed to create: %w.", err)
+	}
+
+	res, err := container.Client.Cli.ContainerExecAttach(container.Client.Ctx, execRes.ID, dockerContainer.ExecStartOptions{})
+	if err != nil {
+		return fmt.Errorf("Container Exec failed to attach: %w.", err)
+	}
+	defer res.Close()
+
+	logger.LogContainerExec(res.Reader, commands, container.Name)
+	return nil
+}

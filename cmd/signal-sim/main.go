@@ -198,4 +198,18 @@ func main() {
 	}
 
 	container.StartContainers(clientContainers)
+
+	// Demo
+	if err := clientContainers[0].Exec([]string{"ls"}); err != nil {
+		panic(err)
+	}
+	if err := clientContainers[1].Exec([]string{"ls", "-la"}); err != nil {
+		panic(err)
+	}
+	if err := clientContainers[2].Exec([]string{"whoami"}); err != nil {
+		panic(err)
+	}
+	if err := clientContainers[3].Exec([]string{"sh", "-c", "./client 1 alice"}); err != nil {
+		panic(err)
+	}
 }
