@@ -302,7 +302,7 @@ func AssignIP(containers []*Container, reservedIP []string, net network.Network)
 	return containers, nil
 }
 
-func (container *Container) Exec(commands []string) error {
+func (container *Container) Exec(commands []string, logOutput bool) error {
 	options := dockerContainer.ExecOptions{
 		Cmd:          commands,
 		AttachStdout: true,
@@ -317,12 +317,14 @@ func (container *Container) Exec(commands []string) error {
 		return fmt.Errorf("Container Exec failed to create: %w.", err)
 	}
 
-	res, err := container.Client.Cli.ContainerExecAttach(container.Client.Ctx, execRes.ID, dockerContainer.ExecStartOptions{})
-	if err != nil {
-		return fmt.Errorf("Container Exec failed to attach: %w.", err)
+	if logOutput {
+		res, err := container.Client.Cli.ContainerExecAttach(container.Client.Ctx, execRes.ID, dockerContainer.ExecStartOptions{})
+		if err != nil {
+			return fmt.Errorf("Container Exec failed to attach: %w.", err)
+		}
+		defer res.Close()
+		logger.LogContainerExec(res.Reader, commands, container.Name)
 	}
-	defer res.Close()
 
-	logger.LogContainerExec(res.Reader, commands, container.Name)
 	return nil
 }
