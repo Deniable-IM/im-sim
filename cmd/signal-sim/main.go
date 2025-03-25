@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"time"
 
 	dockerTypes "github.com/docker/docker/api/types"
 	dockerContainer "github.com/docker/docker/api/types/container"
@@ -200,16 +201,26 @@ func main() {
 	container.StartContainers(clientContainers)
 
 	// Demo
-	if err := clientContainers[0].Exec([]string{"ls"}, false); err != nil {
+	processAlice, err := clientContainers[0].Exec([]string{"./client", "1", "alice"}, true)
+	if err != nil {
 		panic(err)
 	}
-	if err := clientContainers[1].Exec([]string{"ls", "-la"}, true); err != nil {
+	defer processAlice.Close()
+
+	processBob, err := clientContainers[1].Exec([]string{"./client", "2", "bob"}, true)
+	if err != nil {
 		panic(err)
 	}
-	if err := clientContainers[2].Exec([]string{"whoami"}, true); err != nil {
-		panic(err)
-	}
-	if err := clientContainers[3].Exec([]string{"sh", "-c", "./client 1 alice"}, true); err != nil {
-		panic(err)
-	}
+	defer processBob.Close()
+
+	processAlice.Cmd([]byte("send:bob:hello\n"))
+	time.Sleep(2 * time.Second)
+
+	processBob.Cmd([]byte("read\n"))
+	time.Sleep(2 * time.Second)
+
+	processBob.Cmd([]byte("send:alice:hello\n"))
+	time.Sleep(2 * time.Second)
+
+	processAlice.Cmd([]byte("read\n"))
 }

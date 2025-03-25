@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"strings"
-	// "github.com/docker/docker/distribution/utils"
 )
 
 type imageBuildStream struct {
@@ -28,11 +27,6 @@ type containerSliceStream struct {
 	Image  string `json:"image"`
 	Name   string `json:"name"`
 }
-
-// type containerExecStream struct {
-// 	Command string `json:"command"`
-// 	Output  string `json:"output"`
-// }
 
 func LogImageBuild(reader io.Reader) {
 	decoder := json.NewDecoder(reader)

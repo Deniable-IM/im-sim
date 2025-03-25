@@ -6,6 +6,7 @@ import (
 	"io"
 	"log"
 	"sync"
+	"time"
 
 	dockerContainer "github.com/docker/docker/api/types/container"
 	dockerNetwork "github.com/docker/docker/api/types/network"
@@ -16,6 +17,7 @@ import (
 	"deniable-im/im-sim/internal/utils/ipv4"
 	"deniable-im/im-sim/pkg/client"
 	"deniable-im/im-sim/pkg/network"
+	"deniable-im/im-sim/pkg/process"
 )
 
 var ErrNoNetworks = errors.New("container not connected to any network")
@@ -302,29 +304,31 @@ func AssignIP(containers []*Container, reservedIP []string, net network.Network)
 	return containers, nil
 }
 
-func (container *Container) Exec(commands []string, logOutput bool) error {
+// User responsible for Process.Close()
+func (container *Container) Exec(commands []string, logOutput bool) (*process.Process, error) {
 	options := dockerContainer.ExecOptions{
 		Cmd:          commands,
 		AttachStdout: true,
 		AttachStderr: true,
-		AttachStdin:  false,
-		Detach:       true,
+		AttachStdin:  true,
 		Tty:          false,
+		Detach:       false,
 	}
 
 	execRes, err := container.Client.Cli.ContainerExecCreate(container.Client.Ctx, container.ID, options)
 	if err != nil {
-		return fmt.Errorf("Container Exec failed to create: %w.", err)
+		return nil, fmt.Errorf("Container Exec failed to create: %w.", err)
 	}
+
+	res, err := container.Client.Cli.ContainerExecAttach(container.Client.Ctx, execRes.ID, dockerContainer.ExecStartOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("Container Exec failed to attach: %w.", err)
+	}
+	res.Conn.SetReadDeadline(time.Time{})
 
 	if logOutput {
-		res, err := container.Client.Cli.ContainerExecAttach(container.Client.Ctx, execRes.ID, dockerContainer.ExecStartOptions{})
-		if err != nil {
-			return fmt.Errorf("Container Exec failed to attach: %w.", err)
-		}
-		defer res.Close()
-		logger.LogContainerExec(res.Reader, commands, container.Name)
+		go logger.LogContainerExec(res.Reader, commands, container.Name)
 	}
 
-	return nil
+	return process.NewProcess(res.Conn), nil
 }
