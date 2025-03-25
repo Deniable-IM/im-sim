@@ -7,7 +7,8 @@ signal:
 	go run ./cmd/signal-sim
 
 reset:
-	make stop 
+	make stop
+	sudo docker container prune
 	sudo docker network rm IMvlan
 	sudo docker network rm backend
 	

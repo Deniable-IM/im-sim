@@ -1,5 +1,7 @@
 package types
 
+import "fmt"
+
 type Pair[A any, B any] struct {
 	Fst A
 	Snd B
@@ -18,4 +20,13 @@ func (set Set[T]) Pop() T {
 		return e
 	}
 	return nothing
+}
+
+func (set Set[T]) Add(element T) error {
+	beforeLen := len(set)
+	set[element] = struct{}{}
+	if beforeLen == len(set) {
+		return fmt.Errorf("Element already in set")
+	}
+	return nil
 }

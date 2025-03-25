@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"time"
 
 	dockerTypes "github.com/docker/docker/api/types"
 	dockerContainer "github.com/docker/docker/api/types/container"
@@ -198,4 +199,28 @@ func main() {
 	}
 
 	container.StartContainers(clientContainers)
+
+	// Demo
+	processAlice, err := clientContainers[0].Exec([]string{"./client", "1", "alice"}, true)
+	if err != nil {
+		panic(err)
+	}
+	defer processAlice.Close()
+
+	processBob, err := clientContainers[1].Exec([]string{"./client", "2", "bob"}, true)
+	if err != nil {
+		panic(err)
+	}
+	defer processBob.Close()
+
+	processAlice.Cmd([]byte("send:bob:hello\n"))
+	time.Sleep(2 * time.Second)
+
+	processBob.Cmd([]byte("read\n"))
+	time.Sleep(2 * time.Second)
+
+	processBob.Cmd([]byte("send:alice:hello\n"))
+	time.Sleep(2 * time.Second)
+
+	processAlice.Cmd([]byte("read\n"))
 }

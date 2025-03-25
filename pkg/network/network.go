@@ -1,9 +1,11 @@
 package network
 
 import (
+	"deniable-im/im-sim/internal/logger"
 	"deniable-im/im-sim/pkg/client"
+	"fmt"
+
 	"github.com/docker/docker/api/types/network"
-	"log"
 )
 
 type Options struct {
@@ -28,11 +30,12 @@ func NewNetwork(client *client.Client, name string, options Options) *Network {
 		if err != nil {
 			panic(err)
 		} else {
+			logger.LogNetworkNew(fmt.Sprintf("[+] Network %s created", inspectRes.Name))
 			return &Network{client: client, Name: name, ID: createRes.ID, Options: options}
 		}
 	}
 
-	log.Printf("Network %s already exists", inspectRes.Name)
+	logger.LogNetworkNew(fmt.Sprintf("[+] Network %s already exists", inspectRes.Name))
 	return &Network{client: client, Name: inspectRes.Name, ID: inspectRes.ID, Options: options}
 }
 

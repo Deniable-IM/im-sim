@@ -1,6 +1,8 @@
 package logger
 
 import (
+	"bufio"
+	"deniable-im/im-sim/internal/types"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -178,9 +180,39 @@ func LogContainerOptions(string string) {
 	fmt.Printf("%s\n", GreyForeground.Set(string))
 }
 
+func LogNetworkNew(string string) {
+	fmt.Printf("%s\n", GreyForeground.Set(string))
+}
+
 func LogNetworkConnect(string string) {
 	fmt.Print("\n")
 	fmt.Print(ClearEntireLine)
 	fmt.Printf("%s\r", GreyForeground.Set(string))
 	fmt.Print(MoveCursorUp)
+}
+
+func LogContainerExec(reader io.Reader, commands []string, containerName string) {
+	fmt.Print(HideCursor)
+	defer fmt.Print(ShowCursor)
+	handleForcedExit()
+
+	cmd := strings.Join(commands, " ")
+	scanner := bufio.NewScanner(reader)
+
+	fmt.Print(ClearEntireLine)
+	log := fmt.Sprintf("[*] %s:$ %s\n", containerName, cmd)
+	fmt.Print(GreyForeground.Set(log))
+
+	logSet := make(types.Set[string])
+	for scanner.Scan() {
+		text := scanner.Text()
+		if text != "" {
+			if err := logSet.Add(text); err != nil {
+				break
+			}
+		}
+		fmt.Print(ClearEntireLine)
+		log := fmt.Sprintf("\t%s\n\r", text)
+		fmt.Print(GreyForeground.Set(log))
+	}
 }
