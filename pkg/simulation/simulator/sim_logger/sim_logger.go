@@ -1,7 +1,7 @@
 package simlogger
 
 import (
-	Types "deniable-im/im-sim/pkg/client/types"
+	Types "deniable-im/im-sim/pkg/simulation/types"
 	"encoding/json"
 	"time"
 

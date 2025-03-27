@@ -1,22 +1,17 @@
 package Simulator
 
 import (
-	SimLogger "deniable-im/im-sim/pkg/client/simulator/sim_logger"
-	Types "deniable-im/im-sim/pkg/client/types"
-	SimulatedUser "deniable-im/im-sim/pkg/client/user"
+	SimLogger "deniable-im/im-sim/pkg/simulation/simulator/sim_logger"
+	SimulatedUser "deniable-im/im-sim/pkg/simulation/simulator/user"
+	Types "deniable-im/im-sim/pkg/simulation/types"
 	"time"
 )
 
 // Should probably return some kind of state, idk
-// Maybe should generate the users itself, also idk
-// Users should absolutely be initialised and given contacts beforehand
-// TODO: Figure out how the random seed works in go
 func SimulateTraffic(users []SimulatedUser.SimulatedUser, sim_time int64) {
-
-	//Init
 	var logger SimLogger.SimLogger
 	logger.InitLogging()
-	end_signal := make(chan int32)
+	end_signal := make(chan int)
 
 	users_to_log := make([]Types.SimUser, len(users))
 	for i, user := range users {
@@ -25,13 +20,13 @@ func SimulateTraffic(users []SimulatedUser.SimulatedUser, sim_time int64) {
 	logger.LogSimUsers(users_to_log)
 	defer logger.EndLogging()
 
-	//All users start messaging
 	for _, user := range users {
-		go user.StartMessaging()
+		go user.StartMessaging(end_signal)
 	}
 
 	time.Sleep(time.Duration((sim_time * int64(time.Second))))
 
+	//Kill goroutines
 	end_signal <- 1
 
 	time.Sleep(time.Duration(1 * time.Second))

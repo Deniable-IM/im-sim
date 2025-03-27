@@ -213,9 +213,11 @@ func main() {
 	}
 	defer processBob.Close()
 
+	fmt.Println("Sleep!!")
 	processAlice.Cmd([]byte("send:bob:hello\n"))
 	time.Sleep(2 * time.Second)
 
+	fmt.Println("Sleep!!!")
 	processBob.Cmd([]byte("read\n"))
 	time.Sleep(2 * time.Second)
 

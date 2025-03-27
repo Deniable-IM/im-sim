@@ -1,28 +1,41 @@
-package user
+package User
 
 import (
-	Client "deniable-im/im-sim/pkg/client"
-	Behavior "deniable-im/im-sim/pkg/client/behavior"
-	Logger "deniable-im/im-sim/pkg/client/simulator/sim_logger"
-	Types "deniable-im/im-sim/pkg/client/types"
+	Container "deniable-im/im-sim/pkg/container"
+	Process "deniable-im/im-sim/pkg/process"
+	Behavior "deniable-im/im-sim/pkg/simulation/behavior"
+	Logger "deniable-im/im-sim/pkg/simulation/simulator/sim_logger"
+	Types "deniable-im/im-sim/pkg/simulation/types"
 	"fmt"
 	"math/rand"
 	"strings"
 	"time"
 )
 
+const readTimeout = 1
+const startTimeout = 5
+
 type SimulatedUser struct {
 	Behavior Behavior.Behavior
-	Client   Client.Client
+	Client   Container.Container
 	User     Types.SimUser
-	stopChan chan int32
-	logger   Logger.SimLogger
+	Nickname string
+	stopChan chan int
+	logger   *Logger.SimLogger
+	process  *Process.Process
 }
 
-func (su *SimulatedUser) StartMessaging() {
+func (su *SimulatedUser) StartMessaging(stop chan int) {
 	if su == nil {
 		return
 	}
+
+	su.stopChan = stop
+
+	su.Client.Exec([]string{"./client", string(su.User.OwnID), su.Nickname}, true)
+	time.Sleep(time.Duration(startTimeout * time.Second))
+
+	go su.MessageListener()
 
 	for len(su.stopChan) == 0 {
 		time_to_next_message := su.Behavior.GetNextMessageTime()
@@ -85,7 +98,15 @@ func (su *SimulatedUser) SendMessage(msg Types.Msg) {
 		return
 	}
 
-	//IDK how to actually send stuff
+	//TODO: Ensure messages are sent to the docker container at a rate it can handle
+	su.process.Cmd([]byte(fmt.Sprintf("%v\n", msg.MsgContent)))
+}
+
+func (su *SimulatedUser) MessageListener() {
+	for len(su.stopChan) == 0 {
+		time.Sleep(time.Duration(readTimeout * time.Second))
+		su.process.Cmd([]byte("read\n"))
+	}
 
 }
 

@@ -1,7 +1,7 @@
-package user
+package User
 
 import (
-	Types "deniable-im/im-sim/pkg/client/types"
+	Types "deniable-im/im-sim/pkg/simulation/types"
 	"fmt"
 	"math/rand"
 	"strings"
