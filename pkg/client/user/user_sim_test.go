@@ -1,23 +1,34 @@
 package user
 
 import (
+	Types "deniable-im/im-sim/pkg/client/types"
 	"fmt"
+	"math/rand"
 	"strings"
 	"testing"
 )
 
 func TestCreateCommunicationNetwork(t *testing.T) {
 	//1000 SimUser structs are used as it seems like the maximum we can simulate without problems
-	users := make([]SimUser, 1000)
-	for i := range users {
-		users[i].OwnID = int32(i + 1)
+	sim_users := make([]SimulatedUser, 1000)
+	for i := range sim_users {
+		sim_users[i].User.OwnID = int32(i + 1)
 	}
 
-	users = *CreateCommunicationNetwork(&users, 5, 15)
+	users := make([]Types.SimUser, len(sim_users))
+	for i, user := range sim_users {
+		users[i] = user.User
+	}
+
+	var seed int64 = 696969420
+	src := rand.NewSource(seed)
+	rng := rand.New(src)
+
+	users = *CreateCommunicationNetwork(&users, 10, 20, rng)
 
 	for _, u := range users {
 		values := make(map[int32]int32)
-		for _, v := range u.ContactList {
+		for _, v := range u.RegularContactList {
 			values[v] += 1
 
 			if values[v] >= 2 {
@@ -30,7 +41,7 @@ func TestCreateCommunicationNetwork(t *testing.T) {
 			t.Error("User has itself as contact")
 		}
 
-		if len(u.ContactList) == 0 {
+		if len(u.RegularContactList) == 0 {
 			t.Errorf("User %v has no contacts", u.OwnID)
 		}
 	}

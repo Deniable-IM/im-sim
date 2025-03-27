@@ -14,7 +14,7 @@ func TestFuzzPureProbDist(t *testing.T) {
 		t.Error("New function returned nil")
 	}
 
-	if d.Rate != d.GetNextMessageTime(0) {
+	if d.Rate != d.GetNextMessageTime() {
 		t.Error("Error in ProbabilityFunction assigment")
 	}
 

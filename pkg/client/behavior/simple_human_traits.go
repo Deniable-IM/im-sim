@@ -2,7 +2,7 @@ package Behavior
 
 import (
 	"fmt"
-	"math/rand/v2"
+	"math/rand"
 	"strings"
 
 	fuzz "github.com/google/gofuzz"
@@ -14,9 +14,11 @@ type SimpleHumanTraits struct {
 	ForgetRate        float64
 	Rhythm            float64
 	LastSentMessageAt float64
+	SendProp          float64
 	ResponseProb      float64
 	DeniableProb      float64
-	NextMsgFunc       func(float64, float64, float64, float64) float64
+	NextMsgFunc       func(SimpleHumanTraits) float64
+	randomizer        *rand.Rand
 }
 
 func (sh *SimpleHumanTraits) GetBehaviorName() string {
@@ -29,15 +31,18 @@ func (sh *SimpleHumanTraits) GetBehaviorName() string {
 	return b.String()
 }
 
-func (sh *SimpleHumanTraits) GetNextMessageTime(current_time float64) float64 {
+func (sh *SimpleHumanTraits) GetNextMessageTime() float64 {
 	if sh == nil {
 		return 0
 	}
 
-	next := sh.NextMsgFunc(sh.SendRate, sh.ForgetRate, sh.Rhythm, current_time)
-	sh.LastSentMessageAt = current_time + next
+	next := sh.NextMsgFunc(*sh)
 
 	return next
+}
+
+func (sh *SimpleHumanTraits) GetRandomizer() *rand.Rand {
+	return sh.randomizer
 }
 
 func (sh *SimpleHumanTraits) WillRespond() bool {
@@ -45,7 +50,15 @@ func (sh *SimpleHumanTraits) WillRespond() bool {
 		return false
 	}
 
-	return rand.Float64() > (1.0 - sh.ResponseProb)
+	return sh.randomizer.Float64() > (1.0 - sh.ResponseProb)
+}
+
+func (sh *SimpleHumanTraits) SendRegularMsg() bool {
+	if sh == nil {
+		return false
+	}
+
+	return sh.randomizer.Float64() > (1.0 - sh.SendProp)
 }
 
 func (sh *SimpleHumanTraits) SendDeniableMsg() bool {
@@ -53,14 +66,14 @@ func (sh *SimpleHumanTraits) SendDeniableMsg() bool {
 		return false
 	}
 
-	return rand.Float64() > (1.0 - sh.DeniableProb)
+	return sh.randomizer.Float64() > (1.0 - sh.DeniableProb)
 }
 
-func NewSimpleHumanTraits(name string, send_rate, forget_rate, rhythm float64, next_func func(float64, float64, float64, float64) float64) *SimpleHumanTraits {
+func NewSimpleHumanTraits(name string, send_rate, forget_rate, rhythm float64, next_func func(SimpleHumanTraits) float64) *SimpleHumanTraits {
 	return &SimpleHumanTraits{Name: name, SendRate: send_rate, ForgetRate: forget_rate, Rhythm: rhythm, NextMsgFunc: next_func}
 }
 
-func FuzzedNewSimpleHumanTraits(fuzzer fuzz.Fuzzer, next_func func(float64, float64, float64, float64) float64) *SimpleHumanTraits {
+func FuzzedNewSimpleHumanTraits(fuzzer fuzz.Fuzzer, next_func func(SimpleHumanTraits) float64) *SimpleHumanTraits {
 	var sh SimpleHumanTraits
 	fuzzer.Fuzz(&sh)
 	sh.NextMsgFunc = next_func

@@ -2,7 +2,7 @@ package Behavior
 
 import (
 	"fmt"
-	"math/rand/v2"
+	"math/rand"
 	"strings"
 
 	fuzz "github.com/google/gofuzz"
@@ -14,6 +14,11 @@ type PureProbabilityDistribution struct {
 	ProbabilityFunction func(float64, float64) float64
 	DeniableModifier    float64
 	DeniableProb        float64
+	randomizer          *rand.Rand
+}
+
+func (q *PureProbabilityDistribution) GetRandomizer() *rand.Rand {
+	return q.randomizer
 }
 
 func (q *PureProbabilityDistribution) GetBehaviorName() string {
@@ -27,11 +32,15 @@ func (q *PureProbabilityDistribution) GetBehaviorName() string {
 	return b.String()
 }
 
-func (q *PureProbabilityDistribution) GetNextMessageTime(current_time float64) float64 {
+func (q *PureProbabilityDistribution) GetNextMessageTime() float64 {
 	if q == nil {
 		return 0
 	}
 	return q.ProbabilityFunction(q.Rate, q.DeniableModifier)
+}
+
+func (q *PureProbabilityDistribution) SendRegularMsg() bool {
+	return false
 }
 
 func (q *PureProbabilityDistribution) SendDeniableMsg() bool {
@@ -39,7 +48,7 @@ func (q *PureProbabilityDistribution) SendDeniableMsg() bool {
 		return false
 	}
 
-	return rand.Float64() > (1.0 - q.DeniableProb)
+	return q.randomizer.Float64() > (1.0 - q.DeniableProb)
 }
 
 func (q *PureProbabilityDistribution) WillRespond() bool {
