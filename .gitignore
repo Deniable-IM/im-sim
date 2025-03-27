@@ -1,3 +1,6 @@
 **target/
 *.crt
 *.key
+
+#Ignore vscode dirs
+.vscode/
