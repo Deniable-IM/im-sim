@@ -169,6 +169,8 @@ func main() {
 		panic(err)
 	}
 
+	time.Sleep(5 * time.Second) //IMPORTANT SLEEP FOR ARTHUR'S MACHINE
+
 	// Setup clients
 	var images []types.Pair[string, string]
 	for i := range [100]int{} {
