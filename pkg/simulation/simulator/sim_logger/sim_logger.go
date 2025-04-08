@@ -3,49 +3,63 @@ package simlogger
 import (
 	Types "deniable-im/im-sim/pkg/simulation/types"
 	"encoding/json"
-	"time"
-
 	"fmt"
 	"os"
+	"time"
 )
 
 type SimLogger struct {
-	dir string
-	fp  *os.File
+	Dir      string
+	killChan chan bool
 }
 
-func (sl *SimLogger) InitLogging() {
-	ts := time.Now().GoString()
+func (sl *SimLogger) InitLogging(kill chan bool) (chan Types.MsgEvent, error) {
+	sl.killChan = kill
+
+	ts := time.Now().String()
 	dirname := fmt.Sprintf("logs/%v", ts)
 	err := os.MkdirAll(dirname, 0750)
 	if err != nil {
-		return
+		return nil, fmt.Errorf("Failed to create logs/%v", ts)
 	}
 
-	sl.dir = dirname
-	filename := fmt.Sprintf("%v/messages.json", dirname)
-	file, ferr := os.Create(filename)
+	sl.Dir = dirname
+
+	msgLogChan := make(chan Types.MsgEvent)
+	go sl.LogMsgEvent(msgLogChan)
+	return msgLogChan, nil
+}
+
+func (sl *SimLogger) LogMsgEvent(eventChan chan Types.MsgEvent) {
+	path := fmt.Sprintf("%v/messages.json", sl.Dir)
+	f, ferr := os.Create(path)
 	if ferr != nil {
 		fmt.Println("Error creating file:", ferr)
 		return
 	}
+	defer f.Close()
 
-	sl.fp = file
-}
+	for {
+		select {
+		case <-sl.killChan:
+			return
+		default:
+			logEvent := <-eventChan
+			logEvent.Timestamp = time.Now()
+			jsonData, err := json.MarshalIndent(logEvent, "", " ")
+			if err != nil {
+				fmt.Println("Error marshalling JSON", err)
+				return
+			}
 
-func (sl *SimLogger) LogMsgEvent(logEvent Types.MsgEvent) {
-
-	jsonData, err := json.MarshalIndent(logEvent, "", " ")
-	if err != nil {
-		fmt.Println("Error marshalling JSON", err)
-		return
+			_, werr := f.Write(jsonData)
+			if werr != nil {
+				fmt.Println("Error writing msg event to file", werr)
+				return
+			}
+		}
 	}
 
-	_, werr := sl.fp.Write(jsonData)
-	if werr != nil {
-		fmt.Println("Error writing msg event to file", werr)
-		return
-	}
 }
 
 func (sl *SimLogger) LogSimUsers(users []Types.SimUser) {
@@ -56,7 +70,7 @@ func (sl *SimLogger) LogSimUsers(users []Types.SimUser) {
 		return
 	}
 
-	filename := fmt.Sprintf("%v/users.json", sl.dir)
+	filename := fmt.Sprintf("%v/users.json", sl.Dir)
 
 	file, ferr := os.Create(filename)
 	if ferr != nil {
@@ -70,10 +84,4 @@ func (sl *SimLogger) LogSimUsers(users []Types.SimUser) {
 		fmt.Println("Error writing to file", werr)
 		return
 	}
-
-	fmt.Println("Successfully logged users")
-}
-
-func (sl *SimLogger) EndLogging() {
-	sl.fp.Close()
 }

@@ -14,6 +14,11 @@ Add or replace `daemon.json` to enable use of `crun` runtime.
 mv daemon.json /etc/docker/
 ```
 
+This repository depends on tshark which can be found in most package managers such as apt. 
+```bash
+apt install tshark
+```
+
 ## Commands
 
 ### Create certificates

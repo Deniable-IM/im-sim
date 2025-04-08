@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"math/rand"
 	"time"
 
 	dockerTypes "github.com/docker/docker/api/types"
@@ -14,10 +13,6 @@ import (
 	"deniable-im/im-sim/pkg/container"
 	"deniable-im/im-sim/pkg/image"
 	"deniable-im/im-sim/pkg/network"
-	Behavior "deniable-im/im-sim/pkg/simulation/behavior"
-	Simulator "deniable-im/im-sim/pkg/simulation/simulator"
-	SimulatedUser "deniable-im/im-sim/pkg/simulation/simulator/user"
-	Types "deniable-im/im-sim/pkg/simulation/types"
 )
 
 func main() {
@@ -28,7 +23,7 @@ func main() {
 	defer dockerClient.Close()
 
 	// Build redis image
-	_, err = image.NewImage(dockerClient, "./cmd/signal-sim/", &image.Options{
+	_, err = image.NewImage(dockerClient, "./cmd/denim-sim/", &image.Options{
 		PullOpt: &image.PullOptions{
 			RefStr: "redis:latest",
 		},
@@ -38,10 +33,10 @@ func main() {
 	}
 
 	// Build DB image
-	_, err = image.NewImage(dockerClient, "./cmd/signal-sim/", &image.Options{
+	_, err = image.NewImage(dockerClient, "./cmd/denim-sim/", &image.Options{
 		BuildOpt: &dockerTypes.ImageBuildOptions{
 			Dockerfile: "Dockerfile.postgres",
-			Tags:       []string{"im-postgres"},
+			Tags:       []string{"denim-postgres"},
 		},
 	})
 	if err != nil {
@@ -49,10 +44,10 @@ func main() {
 	}
 
 	// Build server image
-	_, err = image.NewImage(dockerClient, "./cmd/signal-sim/", &image.Options{
+	_, err = image.NewImage(dockerClient, "./cmd/denim-sim/", &image.Options{
 		BuildOpt: &dockerTypes.ImageBuildOptions{
 			Dockerfile: "Dockerfile.server",
-			Tags:       []string{"im-server"},
+			Tags:       []string{"denim-server"},
 		},
 	})
 	if err != nil {
@@ -60,10 +55,10 @@ func main() {
 	}
 
 	// Build client image
-	_, err = image.NewImage(dockerClient, "./cmd/signal-sim/", &image.Options{
+	_, err = image.NewImage(dockerClient, "./cmd/denim-sim/", &image.Options{
 		BuildOpt: &dockerTypes.ImageBuildOptions{
 			Dockerfile: "Dockerfile.client",
-			Tags:       []string{"im-client"},
+			Tags:       []string{"denim-client"},
 		},
 	})
 	if err != nil {
@@ -96,7 +91,7 @@ func main() {
 	cache, err := container.NewContainer(
 		dockerClient,
 		"redis:latest",
-		"im-redis",
+		"denim-redis",
 		&container.Options{
 			Connections: network.NewConnections(networkBackend),
 			HostConfig: &dockerContainer.HostConfig{
@@ -121,8 +116,8 @@ func main() {
 	// Setup DB
 	db, err := container.NewContainer(
 		dockerClient,
-		"im-postgres",
-		"im-postgres",
+		"denim-postgres",
+		"denim-postgres",
 		&container.Options{
 			Connections: network.NewConnections(networkBackend),
 			HostConfig: &dockerContainer.HostConfig{
@@ -144,12 +139,14 @@ func main() {
 		panic(err)
 	}
 
+	// time.Sleep(10 * time.Second)
+
 	// Setup server
 	serverIP := "10.10.248.2"
 	server, err := container.NewContainer(
 		dockerClient,
-		"im-server",
-		"im-server",
+		"denim-server",
+		"denim-server",
 		&container.Options{
 			Connections: network.NewConnections(
 				networkBackend,
@@ -179,8 +176,8 @@ func main() {
 	for i := range [100]int{} {
 		images = append(images,
 			types.Pair[string, string]{
-				Fst: "im-client",
-				Snd: fmt.Sprintf("im-client-%d", i),
+				Fst: "denim-client",
+				Snd: fmt.Sprintf("denim-client-%d", i),
 			})
 	}
 
@@ -209,52 +206,50 @@ func main() {
 
 	println("Making users")
 	// Demo
-	// processAlice, err := clientContainers[0].Exec([]string{"./client", "1", "alice"}, true)
-	// if err != nil {
-	// 	panic(err)
-	// }
-	// defer processAlice.Close()
+	processAlice, err := clientContainers[0].Exec([]string{"./client", "1", "alice", "true"}, true)
+	if err != nil {
+		panic(err)
+	}
+	defer processAlice.Close()
 
-	// processBob, err := clientContainers[1].Exec([]string{"./client", "2", "bob"}, true)
-	// if err != nil {
-	// 	panic(err)
-	// }
-	// defer processBob.Close()
+	processBob, err := clientContainers[1].Exec([]string{"./client", "2", "bob", "true"}, true)
+	if err != nil {
+		panic(err)
+	}
+	defer processBob.Close()
 
-	// processAlice.Cmd([]byte("send:bob:hello\n"))
-	// time.Sleep(2 * time.Second)
+	processAlice.Cmd([]byte("send:bob:hello\n"))
+	time.Sleep(2 * time.Second)
 
-	// processBob.Cmd([]byte("read\n"))
-	// time.Sleep(2 * time.Second)
+	processBob.Cmd([]byte("read\n"))
+	time.Sleep(2 * time.Second)
 
-	// processBob.Cmd([]byte("send:alice:hello\n"))
-	// processBob.Cmd([]byte("send:alice:hello1\n"))
-	// processBob.Cmd([]byte("send:alice:hello2\n"))
-	// processBob.Cmd([]byte("send:alice:hello3\n"))
-	// time.Sleep(2 * time.Second)
-	// processAlice.Cmd([]byte("read\n"))
-	// //TODO: Change the client such that messages are always printed, but debug info is hidden unless specifically requested.
+	processBob.Cmd([]byte("send:alice:hello\n"))
+	processBob.Cmd([]byte("send:alice:hello1\n"))
+	processBob.Cmd([]byte("send:alice:hello2\n"))
+	processBob.Cmd([]byte("send:alice:hello3\n"))
+	time.Sleep(2 * time.Second)
+	processAlice.Cmd([]byte("read\n"))
+	//TODO: Change the client such that messages are always printed, but debug info is hidden unless specifically requested.
 
-	// time.Sleep(2 * time.Second)
+	time.Sleep(2 * time.Second)
 
-	// println("Reading alice reader")
+	println("Reading alice reader")
 
-	// println(processAlice.Buffer.String())
-	r := rand.New(rand.NewSource(42069))
-	aliceUserType := Types.SimUser{OwnID: 1, Nickname: "alice"}
-	aliceUserType.RegularContactList = append(aliceUserType.RegularContactList, "bob")
-	aliceBehavior := Behavior.NewSimpleHumanTraits("SimpleHuman", 0.01, 0.0, 0.0, 1.0, func(sht Behavior.SimpleHumanTraits) float64 { return 1.1 }, r)
+	println(processAlice.Buffer.String())
 
-	simulatedAlice := SimulatedUser.SimulatedUser{Behavior: aliceBehavior, User: aliceUserType, Client: clientContainers[0]}
+	// r := rand.New(rand.NewSource(42069))
+	// aliceUserType := Types.SimUser{OwnID: 1, Nickname: "alice", RegularContactList: []string{"bob"}}
+	// aliceBehavior := Behavior.NewSimpleHumanTraits("SimpleHuman", 0.01, 0.0, 0.0, 1.0, func(sht Behavior.SimpleHumanTraits) float64 { return 10.0 }, r)
+	// simulatedAlice := SimulatedUser.SimulatedUser{Behavior: aliceBehavior, User: aliceUserType, Client: clientContainers[0]}
 
-	bobUserType := Types.SimUser{OwnID: 2, Nickname: "bob"}
-	bobUserType.RegularContactList = append(bobUserType.RegularContactList, "alice")
-	bobBehavior := Behavior.NewSimpleHumanTraits("SimpleHuman", 0.01, 0.0, 0.0, 1.0, func(sht Behavior.SimpleHumanTraits) float64 { return 1.3 }, r)
-	simulatedBob := SimulatedUser.SimulatedUser{Behavior: bobBehavior, User: bobUserType, Client: clientContainers[1]}
+	// bobUserType := Types.SimUser{OwnID: 2, Nickname: "bob", RegularContactList: []string{"alice"}}
+	// bobBehavior := Behavior.NewSimpleHumanTraits("SimpleHuman", 0.01, 0.0, 0.0, 1.0, func(sht Behavior.SimpleHumanTraits) float64 { return 10.9 }, r)
+	// simulatedBob := SimulatedUser.SimulatedUser{Behavior: bobBehavior, User: bobUserType, Client: clientContainers[1]}
 
-	users := []SimulatedUser.SimulatedUser{simulatedAlice, simulatedBob}
+	// users := []SimulatedUser.SimulatedUser{simulatedAlice, simulatedBob}
 
-	println("Starting simulation")
-	Simulator.SimulateTraffic(&users, 45)
+	// println("Starting simulation")
+	// Simulator.SimulateTraffic(&users, 45)
 
 }

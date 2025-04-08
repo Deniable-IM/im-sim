@@ -6,6 +6,13 @@ stop:
 signal:
 	go run ./cmd/signal-sim
 
+denim:
+	go run ./cmd/denim-sim
+
+clear:
+	rm -rf ./logs
+	make reset
+
 reset:
 	make stop
 	sudo docker container prune

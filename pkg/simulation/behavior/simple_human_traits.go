@@ -69,8 +69,8 @@ func (sh *SimpleHumanTraits) SendDeniableMsg() bool {
 	return sh.randomizer.Float64() > (1.0 - sh.DeniableProb)
 }
 
-func NewSimpleHumanTraits(name string, send_rate, forget_rate, rhythm float64, next_func func(SimpleHumanTraits) float64) *SimpleHumanTraits {
-	return &SimpleHumanTraits{Name: name, SendRate: send_rate, ForgetRate: forget_rate, Rhythm: rhythm, NextMsgFunc: next_func}
+func NewSimpleHumanTraits(name string, send_rate, forget_rate, rhythm, send_prop float64, next_func func(SimpleHumanTraits) float64, r *rand.Rand) *SimpleHumanTraits {
+	return &SimpleHumanTraits{Name: name, SendRate: send_rate, ForgetRate: forget_rate, Rhythm: rhythm, SendProp: send_prop, NextMsgFunc: next_func, randomizer: r}
 }
 
 func FuzzedNewSimpleHumanTraits(fuzzer fuzz.Fuzzer, next_func func(SimpleHumanTraits) float64) *SimpleHumanTraits {

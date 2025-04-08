@@ -13,6 +13,7 @@ func TestCreateCommunicationNetwork(t *testing.T) {
 	sim_users := make([]SimulatedUser, 1000)
 	for i := range sim_users {
 		sim_users[i].User.OwnID = int32(i + 1)
+		sim_users[i].User.Nickname = fmt.Sprintf("%v", i+1)
 	}
 
 	users := make([]Types.SimUser, len(sim_users))
@@ -27,7 +28,7 @@ func TestCreateCommunicationNetwork(t *testing.T) {
 	users = *CreateCommunicationNetwork(&users, 10, 20, rng)
 
 	for _, u := range users {
-		values := make(map[int32]int32)
+		values := make(map[string]int32)
 		for _, v := range u.RegularContactList {
 			values[v] += 1
 
@@ -37,7 +38,7 @@ func TestCreateCommunicationNetwork(t *testing.T) {
 				t.Error(b.String())
 			}
 		}
-		if values[u.OwnID] != 0 {
+		if values[u.Nickname] != 0 {
 			t.Error("User has itself as contact")
 		}
 
