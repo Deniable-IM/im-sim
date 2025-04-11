@@ -2,6 +2,8 @@ package main
 
 import (
 	"fmt"
+	"math/rand"
+	"sync"
 	"time"
 
 	dockerTypes "github.com/docker/docker/api/types"
@@ -13,6 +15,10 @@ import (
 	"deniable-im/im-sim/pkg/container"
 	"deniable-im/im-sim/pkg/image"
 	"deniable-im/im-sim/pkg/network"
+	Behavior "deniable-im/im-sim/pkg/simulation/behavior"
+	Simulator "deniable-im/im-sim/pkg/simulation/simulator"
+	User "deniable-im/im-sim/pkg/simulation/simulator/user"
+	Types "deniable-im/im-sim/pkg/simulation/types"
 )
 
 func main() {
@@ -139,8 +145,6 @@ func main() {
 		panic(err)
 	}
 
-	// time.Sleep(10 * time.Second)
-
 	// Setup server
 	serverIP := "10.10.248.2"
 	server, err := container.NewContainer(
@@ -206,50 +210,66 @@ func main() {
 
 	println("Making users")
 	// Demo
-	processAlice, err := clientContainers[0].Exec([]string{"./client", "1", "alice", "true"}, true)
-	if err != nil {
-		panic(err)
-	}
-	defer processAlice.Close()
+	// processAlice, err := clientContainers[0].Exec([]string{"./client", "alice", "1", "true"}, true)
+	// if err != nil {
+	// 	panic(err)
+	// }
+	// defer processAlice.Close()
 
-	processBob, err := clientContainers[1].Exec([]string{"./client", "2", "bob", "true"}, true)
-	if err != nil {
-		panic(err)
-	}
-	defer processBob.Close()
+	// processBob, err := clientContainers[1].Exec([]string{"./client", "bob", "2", "true"}, true)
+	// if err != nil {
+	// 	panic(err)
+	// }
+	// defer processBob.Close()
 
-	processAlice.Cmd([]byte("send:bob:hello\n"))
-	time.Sleep(2 * time.Second)
+	// processAlice.Cmd([]byte("send:2:hello\n"))
+	// time.Sleep(2 * time.Second)
 
-	processBob.Cmd([]byte("read\n"))
-	time.Sleep(2 * time.Second)
+	// processBob.Cmd([]byte("read\n"))
+	// time.Sleep(2 * time.Second)
 
-	processBob.Cmd([]byte("send:alice:hello\n"))
-	processBob.Cmd([]byte("send:alice:hello1\n"))
-	processBob.Cmd([]byte("send:alice:hello2\n"))
-	processBob.Cmd([]byte("send:alice:hello3\n"))
-	time.Sleep(2 * time.Second)
-	processAlice.Cmd([]byte("read\n"))
-	//TODO: Change the client such that messages are always printed, but debug info is hidden unless specifically requested.
+	// processBob.Cmd([]byte("send:1:hello\n"))
+	// processBob.Cmd([]byte("send:1:hello1\n"))
+	// processBob.Cmd([]byte("send:1:hello2\n"))
+	// processBob.Cmd([]byte("send:1:hello3\n"))
+	// processBob.Cmd([]byte("send:1:hello4\n"))
+	// processBob.Cmd([]byte("send:1:hello5\n"))
+	// processBob.Cmd([]byte("send:1:hello6\n"))
+	// processBob.Cmd([]byte("send:1:hello7\n"))
+	// processBob.Cmd([]byte("send:1:hello8\n"))
+	// processBob.Cmd([]byte("send:1:hello9\n"))
+	// processBob.Cmd([]byte("send:1:hello10\n"))
+	// processBob.Cmd([]byte("send:1:hello11\n"))
+	// processBob.Cmd([]byte("send:1:hello12\n"))
+	// processBob.Cmd([]byte("send:1:hello13\n"))
+	// time.Sleep(2 * time.Second)
+	// processAlice.Cmd([]byte("read\n"))
+	// //TODO: Change the client such that messages are always printed, but debug info is hidden unless specifically requested.
 
-	time.Sleep(2 * time.Second)
+	// time.Sleep(2 * time.Second)
 
-	println("Reading alice reader")
+	// println("Reading alice reader")
 
-	println(processAlice.Buffer.String())
+	// println(processAlice.Buffer.String())
 
-	// r := rand.New(rand.NewSource(42069))
-	// aliceUserType := Types.SimUser{OwnID: 1, Nickname: "alice", RegularContactList: []string{"bob"}}
-	// aliceBehavior := Behavior.NewSimpleHumanTraits("SimpleHuman", 0.01, 0.0, 0.0, 1.0, func(sht Behavior.SimpleHumanTraits) float64 { return 10.0 }, r)
-	// simulatedAlice := SimulatedUser.SimulatedUser{Behavior: aliceBehavior, User: aliceUserType, Client: clientContainers[0]}
+	networkName := fmt.Sprintf("dm-%v", networkIMvlan.ID[:12])
 
-	// bobUserType := Types.SimUser{OwnID: 2, Nickname: "bob", RegularContactList: []string{"alice"}}
-	// bobBehavior := Behavior.NewSimpleHumanTraits("SimpleHuman", 0.01, 0.0, 0.0, 1.0, func(sht Behavior.SimpleHumanTraits) float64 { return 10.9 }, r)
-	// simulatedBob := SimulatedUser.SimulatedUser{Behavior: bobBehavior, User: bobUserType, Client: clientContainers[1]}
+	var globalLock sync.Mutex
+	r := rand.New(rand.NewSource(42069))
+	aliceUserType := Types.SimUser{OwnID: 1, Nickname: "alice", RegularContactList: []string{"2", "3"}}
+	aliceBehavior := Behavior.NewSimpleHumanTraits("SimpleHuman", 0.01, 0.0, 0.0, 1.0, 1.0, func(sht Behavior.SimpleHumanTraits) float64 { return 2.0 }, r)
+	simulatedAlice := User.SimulatedUser{Behavior: aliceBehavior, User: &aliceUserType, Client: clientContainers[0], GlobalLock: &globalLock}
 
-	// users := []SimulatedUser.SimulatedUser{simulatedAlice, simulatedBob}
+	bobUserType := Types.SimUser{OwnID: 2, Nickname: "bob", RegularContactList: []string{"1", "3"}}
+	bobBehavior := Behavior.NewSimpleHumanTraits("SimpleHuman", 0.01, 0.0, 0.0, 1.0, 1.0, func(sht Behavior.SimpleHumanTraits) float64 { return 2.0 }, r)
+	simulatedBob := User.SimulatedUser{Behavior: bobBehavior, User: &bobUserType, Client: clientContainers[1], GlobalLock: &globalLock}
 
-	// println("Starting simulation")
-	// Simulator.SimulateTraffic(&users, 45)
+	charlieUserType := Types.SimUser{OwnID: 3, Nickname: "charlie", RegularContactList: []string{"1", "2"}}
+	charlieBehavior := Behavior.NewSimpleHumanTraits("SimpleHuman", 0.01, 0.0, 0.0, 1.0, 1.0, func(sht Behavior.SimpleHumanTraits) float64 { return 2.0 }, r)
+	simulatedCharlie := User.SimulatedUser{Behavior: charlieBehavior, User: &charlieUserType, Client: clientContainers[2], GlobalLock: &globalLock}
+
+	users := []*User.SimulatedUser{&simulatedAlice, &simulatedBob, &simulatedCharlie}
+	println("Starting simulation")
+	Simulator.SimulateTraffic(&users, 45, networkName)
 
 }

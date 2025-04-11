@@ -8,20 +8,21 @@ import (
 	"fmt"
 	"math/rand"
 	"strings"
+	"sync"
 	"time"
 )
 
 const readTimeout = 1
-const startTimeout = 5
 
 type SimulatedUser struct {
-	Behavior Behavior.Behavior
-	Client   *Container.Container
-	User     Types.SimUser
-	stopChan chan bool
-	logger   chan Types.MsgEvent
-	process  *Process.Process
-	procChan chan string
+	Behavior   Behavior.Behavior
+	Client     *Container.Container
+	User       *Types.SimUser
+	stopChan   chan bool
+	logger     chan Types.MsgEvent
+	Process    *Process.Process
+	mu         sync.Mutex
+	GlobalLock *sync.Mutex
 }
 
 func (su *SimulatedUser) StartMessaging(stop chan bool, logger chan Types.MsgEvent) {
@@ -32,28 +33,24 @@ func (su *SimulatedUser) StartMessaging(stop chan bool, logger chan Types.MsgEve
 	su.stopChan = stop
 	su.logger = logger
 
-	args := []string{"./client", fmt.Sprintf("%v", su.User.OwnID), su.User.Nickname, "false"}
+	args := []string{"./client", su.User.Nickname, fmt.Sprintf("%v", su.User.OwnID), "false"}
 
 	res, err := su.Client.Exec(args, true)
 	if err != nil {
 		return
 	}
-	defer res.Close()
-	println("Started client container")
-	su.process = res
+	su.Process = res
+	defer su.Process.Close()
 
-	time.Sleep(time.Duration(startTimeout * time.Second))
-
-	pchan := make(chan string)
-	su.procChan = pchan
-	go su.processInterfacer()
+	time.Sleep(200 * time.Millisecond)
 
 	go su.MessageListener()
-	println("Started listener")
 	for {
 		select {
 		case <-su.stopChan:
-			// su.process.Cmd([]byte("read\n"))
+			su.mu.Lock()
+			su.Process.Cmd([]byte("read\n"))
+			su.mu.Unlock()
 			return
 		default:
 			time_to_next_message := su.Behavior.GetNextMessageTime()
@@ -65,20 +62,6 @@ func (su *SimulatedUser) StartMessaging(stop chan bool, logger chan Types.MsgEve
 		}
 
 	}
-
-}
-
-func (su *SimulatedUser) processInterfacer() {
-	for {
-		select {
-		case <-su.stopChan:
-			return
-		default:
-			in := <-su.procChan
-			su.process.Cmd([]byte(in))
-			time.Sleep(500 * time.Millisecond)
-		}
-	}
 }
 
 func (su *SimulatedUser) makeRegularMessage(target string) Types.Msg {
@@ -87,7 +70,7 @@ func (su *SimulatedUser) makeRegularMessage(target string) Types.Msg {
 	}
 
 	var b strings.Builder
-	fmt.Fprintf(&b, "send:%v:Hello %v this is %v sending you a regular message. Fuck the alphabet boys reading this.", target, target, su.User.Nickname)
+	fmt.Fprintf(&b, "send:%v:Hello %v this is %v sending you a regular message Fuck the alphabet boys reading this", target, target, su.User.Nickname)
 
 	msg := Types.Msg{To: target, From: su.User.Nickname, MsgContent: b.String(), IsDeniable: false}
 
@@ -99,7 +82,7 @@ func (su *SimulatedUser) makeDeniableMessage(target string) Types.Msg {
 		return Types.Msg{}
 	}
 	var b strings.Builder
-	fmt.Fprintf(&b, "denim:%v:Hello %v, this is %v sending you a deniable message. Fuck the alphabet boys reading this.", target, target, su.User.Nickname)
+	fmt.Fprintf(&b, "denim:%v:Hello %v this is %v sending you a deniable message Fuck the alphabet boys reading this", target, target, su.User.Nickname)
 
 	msg := Types.Msg{To: target, From: su.User.Nickname, MsgContent: b.String(), IsDeniable: true}
 	return msg
@@ -132,10 +115,13 @@ func (su *SimulatedUser) SendMessage(msg Types.Msg) {
 
 	su.logger <- Types.MsgEvent{Msg: msg, EventType: "Send"}
 
-	send := fmt.Sprintf("%v\n", msg.MsgContent)
-	//TODO: Ensure messages are sent to the docker container at a rate it can handle
-	// su.process.Cmd([]byte(send))
-	su.procChan <- send
+	// Ensures messages are sent to the docker container at a rate it can handle
+	su.GlobalLock.Lock()
+	su.mu.Lock()
+	su.Process.Cmd([]byte(fmt.Sprintf("%v\n", msg.MsgContent)))
+	su.mu.Unlock()
+	time.Sleep(50 * time.Millisecond) //Important to avoid fucking processes, if I knew why I would fix the root problem
+	su.GlobalLock.Unlock()
 }
 
 func (su *SimulatedUser) OnReceive(msg Types.Msg) {
@@ -160,25 +146,43 @@ func (su *SimulatedUser) MessageListener() {
 	for {
 		select {
 		case <-su.stopChan:
-			return
+			break
 		default:
 			time.Sleep(time.Duration(readTimeout * time.Second))
-			// println("reading...")
-			// su.process.Cmd([]byte("read\n"))
-			su.procChan <- "read\n"
-			time.Sleep(time.Duration(readTimeout * time.Second))
-
-			for su.process.Buffer.Len() != 0 {
-				line, err := su.process.Buffer.ReadString(byte('\n'))
+			su.mu.Lock()
+			su.Process.Cmd([]byte("read\n"))
+			su.mu.Unlock()
+			for su.Process.Buffer.Len() != 0 {
+				line, err := su.Process.Buffer.ReadString(byte('\n'))
 				if len(line) == 0 {
+					fmt.Println("Encountered error: %v \n", err)
 					break
 				}
 
-				// Handle line
-				splits := strings.Split(line, ":")
+				if err != nil {
+					break
+				}
 
+				if len(line) == 1 {
+					continue
+				}
+
+				splits := strings.Split(line, ":")
+				if splits[0] == "" || splits[0] == "\n" {
+					continue
+				}
+
+				sender := splits[0]
+				if len(sender) < 8 {
+					continue
+				}
+
+				sender = sender[8:len(sender)]
+				if sender == "\n" {
+					continue
+				}
 				for _, name := range su.User.RegularContactList {
-					if splits[0] == name {
+					if sender == name {
 						msg := Types.Msg{To: su.User.Nickname, From: name, MsgContent: splits[1], IsDeniable: false}
 						go su.OnReceive(msg)
 						break
@@ -186,15 +190,11 @@ func (su *SimulatedUser) MessageListener() {
 				}
 
 				for _, name := range su.User.DeniableContactList {
-					if splits[0] == name {
+					if sender == name {
 						msg := Types.Msg{To: su.User.Nickname, From: name, MsgContent: splits[1], IsDeniable: true}
 						go su.OnReceive(msg)
 						break
 					}
-				}
-
-				if err != nil {
-					break
 				}
 			}
 		}

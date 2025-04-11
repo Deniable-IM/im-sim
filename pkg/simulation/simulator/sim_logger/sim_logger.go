@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 )
 
@@ -17,6 +18,9 @@ func (sl *SimLogger) InitLogging(kill chan bool) (chan Types.MsgEvent, error) {
 	sl.killChan = kill
 
 	ts := time.Now().String()
+	ts = strings.ReplaceAll(ts, " ", "")
+	ts = strings.ReplaceAll(ts, ":", "")
+	ts = ts[:16]
 	dirname := fmt.Sprintf("logs/%v", ts)
 	err := os.MkdirAll(dirname, 0750)
 	if err != nil {

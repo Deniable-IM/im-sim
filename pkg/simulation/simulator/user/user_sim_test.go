@@ -18,7 +18,7 @@ func TestCreateCommunicationNetwork(t *testing.T) {
 
 	users := make([]Types.SimUser, len(sim_users))
 	for i, user := range sim_users {
-		users[i] = user.User
+		users[i] = *user.User
 	}
 
 	var seed int64 = 696969420

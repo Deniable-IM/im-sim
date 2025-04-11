@@ -4,18 +4,15 @@ import (
 	"bytes"
 	"fmt"
 	"net"
-	"time"
 )
 
 type Process struct {
-	conn net.Conn
-	// Reader   *bufio.Reader
-	Buffer   *bytes.Buffer
-	kill_sig chan int
+	conn   net.Conn
+	Buffer *bytes.Buffer
 }
 
 func NewProcess(conn net.Conn, reader *bytes.Buffer) *Process {
-	return &Process{conn, reader, make(chan int)}
+	return &Process{conn, reader}
 }
 
 func (process *Process) Cmd(cmd []byte) error {
@@ -28,18 +25,7 @@ func (process *Process) Cmd(cmd []byte) error {
 
 func (process *Process) Close() error {
 	if process.conn != nil {
-		process.kill_sig <- 1
 		return process.conn.Close()
 	}
 	return nil
-}
-
-func (process *Process) ProcessReader() {
-
-	go func() {
-		for len(process.kill_sig) == 0 {
-			time.Sleep(1 * time.Second)
-			process.Cmd([]byte("read\n"))
-		}
-	}()
 }
