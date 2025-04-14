@@ -30,7 +30,7 @@ func NewNetwork(client *client.Client, name string, options Options) *Network {
 		if err != nil {
 			panic(err)
 		} else {
-			logger.LogNetworkNew(fmt.Sprintf("[+] Network %s created", inspectRes.Scope))
+			logger.LogNetworkNew(fmt.Sprintf("[+] Network %s created", inspectRes.ID))
 			return &Network{client: client, Name: name, ID: createRes.ID, Options: options}
 		}
 	}

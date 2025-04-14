@@ -11,7 +11,7 @@ import (
 type PureProbabilityDistribution struct {
 	Name                string
 	Rate                float64
-	ProbabilityFunction func(float64, float64) float64
+	ProbabilityFunction func(*PureProbabilityDistribution) float64
 	DeniableModifier    float64
 	DeniableProb        float64
 	randomizer          *rand.Rand
@@ -36,7 +36,7 @@ func (q *PureProbabilityDistribution) GetNextMessageTime() float64 {
 	if q == nil {
 		return 0
 	}
-	return q.ProbabilityFunction(q.Rate, q.DeniableModifier)
+	return q.ProbabilityFunction(q)
 }
 
 func (q *PureProbabilityDistribution) SendRegularMsg() bool {
@@ -55,17 +55,15 @@ func (q *PureProbabilityDistribution) WillRespond() bool {
 	return false
 }
 
-func NewPureProbabilityDistribution(name string, rate float64, distribution func(float64, float64) float64, deniable_mod float64) *PureProbabilityDistribution {
-	return &PureProbabilityDistribution{Name: name, Rate: rate, ProbabilityFunction: distribution, DeniableModifier: deniable_mod}
+func NewPureProbabilityDistribution(name string, rate float64, distribution func(*PureProbabilityDistribution) float64, deniable_mod, deniable_prop float64, randomizer *rand.Rand) *PureProbabilityDistribution {
+	return &PureProbabilityDistribution{Name: name, Rate: rate, ProbabilityFunction: distribution, DeniableModifier: deniable_mod, DeniableProb: deniable_prop, randomizer: randomizer}
 }
 
-func NewFuzzedPureProbabilityDistribution(fuzzer *fuzz.Fuzzer, distribution func(float64, float64) float64) *PureProbabilityDistribution {
-	//TODO: Actually implement fuzzy wuzzy
-	var name string
-	var rate, deniable_mod float64
-	fuzzer.Fuzz(&name)
-	fuzzer.Fuzz(&rate)
-	fuzzer.Fuzz(&deniable_mod)
+func NewFuzzedPureProbabilityDistribution(fuzzer *fuzz.Fuzzer, distribution func(*PureProbabilityDistribution) float64, randomizer *rand.Rand) *PureProbabilityDistribution {
+	var q PureProbabilityDistribution
+	fuzzer.Fuzz(&q)
+	q.ProbabilityFunction = distribution
+	q.randomizer = randomizer
 
-	return NewPureProbabilityDistribution(name, rate, distribution, deniable_mod)
+	return &q
 }

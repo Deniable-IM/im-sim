@@ -1,6 +1,7 @@
 package Behavior
 
 import (
+	"math/rand"
 	"testing"
 
 	fuzz "github.com/google/gofuzz"
@@ -8,7 +9,9 @@ import (
 
 func TestFuzzPureProbDist(t *testing.T) {
 	f := fuzz.NewWithSeed(4206969).NilChance(0)
-	d := NewFuzzedPureProbabilityDistribution(f, func(f1, f2 float64) float64 { return f1 })
+	r := rand.New(rand.NewSource(42069))
+
+	d := NewFuzzedPureProbabilityDistribution(f, func(test *PureProbabilityDistribution) float64 { return 0 }, r)
 
 	if d == nil {
 		t.Error("New function returned nil")
@@ -22,7 +25,9 @@ func TestFuzzPureProbDist(t *testing.T) {
 
 func TestRespondLogic(t *testing.T) {
 	f := fuzz.NewWithSeed(6942069).NilChance(0)
-	pp := NewFuzzedPureProbabilityDistribution(f, func(x, y float64) float64 { return y })
+	r := rand.New(rand.NewSource(42069))
+
+	pp := NewFuzzedPureProbabilityDistribution(f, func(test *PureProbabilityDistribution) float64 { return 0 }, r)
 
 	res1 := pp.WillRespond()
 	if res1 {

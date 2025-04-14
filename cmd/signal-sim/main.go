@@ -2,6 +2,8 @@ package main
 
 import (
 	"fmt"
+	"math/rand"
+	"sync"
 	"time"
 
 	dockerTypes "github.com/docker/docker/api/types"
@@ -13,6 +15,10 @@ import (
 	"deniable-im/im-sim/pkg/container"
 	"deniable-im/im-sim/pkg/image"
 	"deniable-im/im-sim/pkg/network"
+	Behavior "deniable-im/im-sim/pkg/simulation/behavior"
+	Simulator "deniable-im/im-sim/pkg/simulation/simulator"
+	User "deniable-im/im-sim/pkg/simulation/simulator/user"
+	Types "deniable-im/im-sim/pkg/simulation/types"
 )
 
 func main() {
@@ -202,54 +208,24 @@ func main() {
 
 	time.Sleep(5 * time.Second) //IMPORTANT SLEEP FOR ARTHUR'S MACHINE
 
-	println("Making users")
-	// Demo
-	processAlice, err := clientContainers[0].Exec([]string{"./client", "1", "alice"}, true)
-	if err != nil {
-		panic(err)
-	}
-	defer processAlice.Close()
+	networkName := fmt.Sprintf("dm-%v", networkIMvlan.ID[:12])
 
-	processBob, err := clientContainers[1].Exec([]string{"./client", "2", "bob"}, true)
-	if err != nil {
-		panic(err)
-	}
-	defer processBob.Close()
+	var globalLock sync.Mutex
+	r := rand.New(rand.NewSource(42069))
+	aliceUserType := Types.SimUser{OwnID: 1, Nickname: "alice", RegularContactList: []string{"2", "3"}}
+	aliceBehavior := Behavior.NewSimpleHumanTraits("SimpleHuman", 0.01, 0.0, 0.0, 1.0, 1.0, func(sht Behavior.SimpleHumanTraits) float64 { return 2.0 }, r)
+	simulatedAlice := User.SimulatedUser{Behavior: aliceBehavior, User: &aliceUserType, Client: clientContainers[0], GlobalLock: &globalLock}
 
-	processAlice.Cmd([]byte("send:bob:hello\n"))
-	time.Sleep(2 * time.Second)
+	bobUserType := Types.SimUser{OwnID: 2, Nickname: "bob", RegularContactList: []string{"1", "3"}}
+	bobBehavior := Behavior.NewSimpleHumanTraits("SimpleHuman", 0.01, 0.0, 0.0, 1.0, 1.0, func(sht Behavior.SimpleHumanTraits) float64 { return 2.0 }, r)
+	simulatedBob := User.SimulatedUser{Behavior: bobBehavior, User: &bobUserType, Client: clientContainers[1], GlobalLock: &globalLock}
 
-	processBob.Cmd([]byte("read\n"))
-	time.Sleep(2 * time.Second)
+	charlieUserType := Types.SimUser{OwnID: 3, Nickname: "charlie", RegularContactList: []string{"1", "2"}}
+	charlieBehavior := Behavior.NewSimpleHumanTraits("SimpleHuman", 0.01, 0.0, 0.0, 1.0, 1.0, func(sht Behavior.SimpleHumanTraits) float64 { return 2.0 }, r)
+	simulatedCharlie := User.SimulatedUser{Behavior: charlieBehavior, User: &charlieUserType, Client: clientContainers[2], GlobalLock: &globalLock}
 
-	processBob.Cmd([]byte("send:alice:hello\n"))
-	processBob.Cmd([]byte("send:alice:hello1\n"))
-	processBob.Cmd([]byte("send:alice:hello2\n"))
-	processBob.Cmd([]byte("send:alice:hello3\n"))
-	time.Sleep(2 * time.Second)
-	processAlice.Cmd([]byte("read\n"))
-	//TODO: Change the client such that messages are always printed, but debug info is hidden unless specifically requested.
-
-	time.Sleep(2 * time.Second)
-
-	println("Reading alice reader")
-
-	println(processAlice.Buffer.String())
-	// r := rand.New(rand.NewSource(42069))
-	// aliceUserType := Types.SimUser{OwnID: 1, Nickname: "alice"}
-	// aliceUserType.RegularContactList = append(aliceUserType.RegularContactList, "2")
-	// aliceBehavior := Behavior.NewSimpleHumanTraits("SimpleHuman", 0.01, 0.0, 0.0, 1.0, func(sht Behavior.SimpleHumanTraits) float64 { return 1.1 }, r)
-
-	// simulatedAlice := SimulatedUser.SimulatedUser{Behavior: aliceBehavior, User: &aliceUserType, Client: clientContainers[0]}
-
-	// bobUserType := Types.SimUser{OwnID: 2, Nickname: "bob"}
-	// bobUserType.RegularContactList = append(bobUserType.RegularContactList, "1")
-	// bobBehavior := Behavior.NewSimpleHumanTraits("SimpleHuman", 0.01, 0.0, 0.0, 1.0, func(sht Behavior.SimpleHumanTraits) float64 { return 1.3 }, r)
-	// simulatedBob := SimulatedUser.SimulatedUser{Behavior: bobBehavior, User: &bobUserType, Client: clientContainers[1]}
-
-	// users := []*SimulatedUser.SimulatedUser{&simulatedAlice, &simulatedBob}
-
-	// println("Starting simulation")
-	// Simulator.SimulateTraffic(&users, 45)
+	users := []*User.SimulatedUser{&simulatedAlice, &simulatedBob, &simulatedCharlie}
+	println("Starting simulation")
+	Simulator.SimulateTraffic(&users, 45, networkName)
 
 }

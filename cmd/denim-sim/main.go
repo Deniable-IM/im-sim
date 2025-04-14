@@ -208,50 +208,6 @@ func main() {
 
 	time.Sleep(5 * time.Second) //IMPORTANT SLEEP FOR ARTHUR'S MACHINE
 
-	println("Making users")
-	// Demo
-	// processAlice, err := clientContainers[0].Exec([]string{"./client", "alice", "1", "true"}, true)
-	// if err != nil {
-	// 	panic(err)
-	// }
-	// defer processAlice.Close()
-
-	// processBob, err := clientContainers[1].Exec([]string{"./client", "bob", "2", "true"}, true)
-	// if err != nil {
-	// 	panic(err)
-	// }
-	// defer processBob.Close()
-
-	// processAlice.Cmd([]byte("send:2:hello\n"))
-	// time.Sleep(2 * time.Second)
-
-	// processBob.Cmd([]byte("read\n"))
-	// time.Sleep(2 * time.Second)
-
-	// processBob.Cmd([]byte("send:1:hello\n"))
-	// processBob.Cmd([]byte("send:1:hello1\n"))
-	// processBob.Cmd([]byte("send:1:hello2\n"))
-	// processBob.Cmd([]byte("send:1:hello3\n"))
-	// processBob.Cmd([]byte("send:1:hello4\n"))
-	// processBob.Cmd([]byte("send:1:hello5\n"))
-	// processBob.Cmd([]byte("send:1:hello6\n"))
-	// processBob.Cmd([]byte("send:1:hello7\n"))
-	// processBob.Cmd([]byte("send:1:hello8\n"))
-	// processBob.Cmd([]byte("send:1:hello9\n"))
-	// processBob.Cmd([]byte("send:1:hello10\n"))
-	// processBob.Cmd([]byte("send:1:hello11\n"))
-	// processBob.Cmd([]byte("send:1:hello12\n"))
-	// processBob.Cmd([]byte("send:1:hello13\n"))
-	// time.Sleep(2 * time.Second)
-	// processAlice.Cmd([]byte("read\n"))
-	// //TODO: Change the client such that messages are always printed, but debug info is hidden unless specifically requested.
-
-	// time.Sleep(2 * time.Second)
-
-	// println("Reading alice reader")
-
-	// println(processAlice.Buffer.String())
-
 	networkName := fmt.Sprintf("dm-%v", networkIMvlan.ID[:12])
 
 	var globalLock sync.Mutex
@@ -271,5 +227,4 @@ func main() {
 	users := []*User.SimulatedUser{&simulatedAlice, &simulatedBob, &simulatedCharlie}
 	println("Starting simulation")
 	Simulator.SimulateTraffic(&users, 45, networkName)
-
 }
