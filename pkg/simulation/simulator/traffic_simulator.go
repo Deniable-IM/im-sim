@@ -9,7 +9,7 @@ import (
 )
 
 // Should probably return some kind of state, idk
-func SimulateTraffic(users *[]*SimulatedUser.SimulatedUser, simTime int64, networkInterface string) {
+func SimulateTraffic(users []*SimulatedUser.SimulatedUser, simTime int64, networkInterface string) {
 	end_signal := make(chan bool)
 	var logger SimLogger.SimLogger
 	msgChan, err := logger.InitLogging(end_signal)
@@ -17,8 +17,8 @@ func SimulateTraffic(users *[]*SimulatedUser.SimulatedUser, simTime int64, netwo
 		return
 	}
 
-	users_to_log := make([]Types.SimUser, len(*users))
-	for i, user := range *users {
+	users_to_log := make([]Types.SimUser, len(users))
+	for i, user := range users {
 		users_to_log[i] = (*user.User)
 	}
 	logger.LogSimUsers(users_to_log)
@@ -29,7 +29,7 @@ func SimulateTraffic(users *[]*SimulatedUser.SimulatedUser, simTime int64, netwo
 	}
 	defer cmd.Wait()
 
-	for _, user := range *users {
+	for _, user := range users {
 		go user.StartMessaging(end_signal, msgChan)
 	}
 	time.Sleep(time.Duration((simTime * int64(time.Second))))

@@ -15,7 +15,7 @@ type MsgEvent struct {
 }
 
 type SimUser struct {
-	OwnID               int32
+	ID                  int32
 	Nickname            string
 	RegularContactList  []string
 	DeniableContactList []string

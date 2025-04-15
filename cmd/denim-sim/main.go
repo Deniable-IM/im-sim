@@ -211,20 +211,23 @@ func main() {
 	networkName := fmt.Sprintf("dm-%v", networkIMvlan.ID[:12])
 
 	var globalLock sync.Mutex
+
+	nextfunc := func(sht Behavior.SimpleHumanTraits) float64 { return float64(sht.GetRandomizer().Int31n(360)) }
+
 	r := rand.New(rand.NewSource(42069))
-	aliceUserType := Types.SimUser{OwnID: 1, Nickname: "alice", RegularContactList: []string{"2", "3"}}
-	aliceBehavior := Behavior.NewSimpleHumanTraits("SimpleHuman", 0.01, 0.0, 0.0, 1.0, 1.0, 0.0, func(sht Behavior.SimpleHumanTraits) float64 { return 2.0 }, r)
+	aliceUserType := Types.SimUser{ID: 1, Nickname: "alice", RegularContactList: []string{"2", "3"}}
+	aliceBehavior := Behavior.NewSimpleHumanTraits("SimpleHuman", 0.01, 0.0, 0.0, 0.75, 0.45, 0.0, nextfunc, r)
 	simulatedAlice := User.SimulatedUser{Behavior: aliceBehavior, User: &aliceUserType, Client: clientContainers[0], GlobalLock: &globalLock}
 
-	bobUserType := Types.SimUser{OwnID: 2, Nickname: "bob", RegularContactList: []string{"1", "3"}}
-	bobBehavior := Behavior.NewSimpleHumanTraits("SimpleHuman", 0.01, 0.0, 0.0, 1.0, 1.0, 0.0, func(sht Behavior.SimpleHumanTraits) float64 { return 2.0 }, r)
+	bobUserType := Types.SimUser{ID: 2, Nickname: "bob", RegularContactList: []string{"1", "3"}}
+	bobBehavior := Behavior.NewSimpleHumanTraits("SimpleHuman", 0.01, 0.0, 0.0, 0.75, 0.45, 0.0, nextfunc, r)
 	simulatedBob := User.SimulatedUser{Behavior: bobBehavior, User: &bobUserType, Client: clientContainers[1], GlobalLock: &globalLock}
 
-	charlieUserType := Types.SimUser{OwnID: 3, Nickname: "charlie", RegularContactList: []string{"1", "2"}}
-	charlieBehavior := Behavior.NewSimpleHumanTraits("SimpleHuman", 0.01, 0.0, 0.0, 1.0, 1.0, 0.0, func(sht Behavior.SimpleHumanTraits) float64 { return 2.0 }, r)
+	charlieUserType := Types.SimUser{ID: 3, Nickname: "charlie", RegularContactList: []string{"1", "2"}}
+	charlieBehavior := Behavior.NewSimpleHumanTraits("SimpleHuman", 0.01, 0.0, 0.0, 0.75, 0.45, 0.0, nextfunc, r)
 	simulatedCharlie := User.SimulatedUser{Behavior: charlieBehavior, User: &charlieUserType, Client: clientContainers[2], GlobalLock: &globalLock}
 
 	users := []*User.SimulatedUser{&simulatedAlice, &simulatedBob, &simulatedCharlie}
 	println("Starting simulation")
-	Simulator.SimulateTraffic(&users, 45, networkName)
+	Simulator.SimulateTraffic(users, 1800, networkName)
 }

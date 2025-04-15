@@ -12,7 +12,7 @@ func TestCreateCommunicationNetwork(t *testing.T) {
 	//1000 SimUser structs are used as it seems like the maximum we can simulate without problems
 	sim_users := make([]SimulatedUser, 1000)
 	for i := range sim_users {
-		sim_users[i].User.OwnID = int32(i + 1)
+		sim_users[i].User.ID = int32(i + 1)
 		sim_users[i].User.Nickname = fmt.Sprintf("%v", i+1)
 	}
 
@@ -25,7 +25,7 @@ func TestCreateCommunicationNetwork(t *testing.T) {
 	src := rand.NewSource(seed)
 	rng := rand.New(src)
 
-	users = *CreateCommunicationNetwork(&users, 10, 20, rng)
+	users = CreateCommunicationNetwork(users, 10, 20, rng)
 
 	for _, u := range users {
 		values := make(map[string]int32)
@@ -34,7 +34,7 @@ func TestCreateCommunicationNetwork(t *testing.T) {
 
 			if values[v] >= 2 {
 				var b strings.Builder
-				fmt.Fprintf(&b, "Value %v appears multiple times in User %v's contact list", v, u.OwnID)
+				fmt.Fprintf(&b, "Value %v appears multiple times in User %v's contact list", v, u.ID)
 				t.Error(b.String())
 			}
 		}
@@ -43,7 +43,7 @@ func TestCreateCommunicationNetwork(t *testing.T) {
 		}
 
 		if len(u.RegularContactList) == 0 {
-			t.Errorf("User %v has no contacts", u.OwnID)
+			t.Errorf("User %v has no contacts", u.ID)
 		}
 	}
 }

@@ -33,7 +33,7 @@ func (su *SimulatedUser) StartMessaging(stop chan bool, logger chan Types.MsgEve
 	su.stopChan = stop
 	su.logger = logger
 
-	args := []string{"./client", su.User.Nickname, fmt.Sprintf("%v", su.User.OwnID), "false"}
+	args := []string{"./client", su.User.Nickname, fmt.Sprintf("%v", su.User.ID), "false"}
 
 	res, err := su.Client.Exec(args, true)
 	if err != nil {
@@ -207,15 +207,15 @@ func (su *SimulatedUser) SetDeniableContacts(contacts []string) {
 
 // Modifies all passed users' contact lists and ensures each user has a minimum number of contacts
 // in the range of min_contact_count and max_contact_count
-func CreateCommunicationNetwork(users *[]Types.SimUser, min_contact_count, max_contact_count int, r *rand.Rand) *[]Types.SimUser {
-	for i := range *users {
+func CreateCommunicationNetwork(users []Types.SimUser, min_contact_count, max_contact_count int, r *rand.Rand) []Types.SimUser {
+	for i := range users {
 		contact_count := r.Intn(max_contact_count-min_contact_count) + min_contact_count
-		(*users)[i].RegularContactList = make([]string, contact_count)
+		(users)[i].RegularContactList = make([]string, contact_count)
 	}
 
-	max_index := len(*users)
+	max_index := len(users)
 
-	for index, alice := range *users {
+	for index, alice := range users {
 		for i, v := range alice.RegularContactList {
 			if v != "" {
 				continue
@@ -231,7 +231,7 @@ func CreateCommunicationNetwork(users *[]Types.SimUser, min_contact_count, max_c
 				retry := false
 
 				for _, id := range alice.RegularContactList {
-					if id == (*users)[bob_index].Nickname {
+					if id == users[bob_index].Nickname {
 						retry = true
 						break
 					}
@@ -242,18 +242,18 @@ func CreateCommunicationNetwork(users *[]Types.SimUser, min_contact_count, max_c
 				}
 			}
 
-			(*users)[index].RegularContactList[i] = (*users)[bob_index].Nickname
+			users[index].RegularContactList[i] = users[bob_index].Nickname
 
 			//Add to Bob's contact list or append if existing contact list is full
-			if (*users)[bob_index].RegularContactList[len((*users)[bob_index].RegularContactList)-1] == "" {
-				for j, val := range (*users)[bob_index].RegularContactList {
+			if users[bob_index].RegularContactList[len(users[bob_index].RegularContactList)-1] == "" {
+				for j, val := range users[bob_index].RegularContactList {
 					if val == "" {
-						(*users)[bob_index].RegularContactList[j] = alice.Nickname
+						users[bob_index].RegularContactList[j] = alice.Nickname
 						break
 					}
 				}
 			} else {
-				(*users)[bob_index].RegularContactList = append((*users)[bob_index].RegularContactList, alice.Nickname)
+				users[bob_index].RegularContactList = append(users[bob_index].RegularContactList, alice.Nickname)
 			}
 		}
 	} //Apparantly the way to get a random number between min_count and max_count...
