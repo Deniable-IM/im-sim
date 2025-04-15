@@ -29,7 +29,7 @@ func main() {
 	defer dockerClient.Close()
 
 	// Build redis image
-	_, err = image.NewImage(dockerClient, "./cmd/signal-sim/", &image.Options{
+	_, err = image.NewImage(dockerClient, "./cmd/denim-sim/", &image.Options{
 		PullOpt: &image.PullOptions{
 			RefStr: "redis:latest",
 		},
@@ -39,10 +39,10 @@ func main() {
 	}
 
 	// Build DB image
-	_, err = image.NewImage(dockerClient, "./cmd/signal-sim/", &image.Options{
+	_, err = image.NewImage(dockerClient, "./cmd/denim-sim/", &image.Options{
 		BuildOpt: &dockerTypes.ImageBuildOptions{
 			Dockerfile: "Dockerfile.postgres",
-			Tags:       []string{"im-postgres"},
+			Tags:       []string{"denim-postgres"},
 		},
 	})
 	if err != nil {
@@ -50,10 +50,10 @@ func main() {
 	}
 
 	// Build server image
-	_, err = image.NewImage(dockerClient, "./cmd/signal-sim/", &image.Options{
+	_, err = image.NewImage(dockerClient, "./cmd/denim-sim/", &image.Options{
 		BuildOpt: &dockerTypes.ImageBuildOptions{
 			Dockerfile: "Dockerfile.server",
-			Tags:       []string{"im-server"},
+			Tags:       []string{"denim-server"},
 		},
 	})
 	if err != nil {
@@ -61,10 +61,10 @@ func main() {
 	}
 
 	// Build client image
-	_, err = image.NewImage(dockerClient, "./cmd/signal-sim/", &image.Options{
+	_, err = image.NewImage(dockerClient, "./cmd/denim-sim/", &image.Options{
 		BuildOpt: &dockerTypes.ImageBuildOptions{
 			Dockerfile: "Dockerfile.client",
-			Tags:       []string{"im-client"},
+			Tags:       []string{"denim-client"},
 		},
 	})
 	if err != nil {
@@ -97,7 +97,7 @@ func main() {
 	cache, err := container.NewContainer(
 		dockerClient,
 		"redis:latest",
-		"im-redis",
+		"denim-redis",
 		&container.Options{
 			Connections: network.NewConnections(networkBackend),
 			HostConfig: &dockerContainer.HostConfig{
@@ -122,8 +122,8 @@ func main() {
 	// Setup DB
 	db, err := container.NewContainer(
 		dockerClient,
-		"im-postgres",
-		"im-postgres",
+		"denim-postgres",
+		"denim-postgres",
 		&container.Options{
 			Connections: network.NewConnections(networkBackend),
 			HostConfig: &dockerContainer.HostConfig{
@@ -149,8 +149,8 @@ func main() {
 	serverIP := "10.10.248.2"
 	server, err := container.NewContainer(
 		dockerClient,
-		"im-server",
-		"im-server",
+		"denim-server",
+		"denim-server",
 		&container.Options{
 			Connections: network.NewConnections(
 				networkBackend,
@@ -180,8 +180,8 @@ func main() {
 	for i := range [100]int{} {
 		images = append(images,
 			types.Pair[string, string]{
-				Fst: "im-client",
-				Snd: fmt.Sprintf("im-client-%d", i),
+				Fst: "denim-client",
+				Snd: fmt.Sprintf("denim-client-%d", i),
 			})
 	}
 
@@ -211,21 +211,23 @@ func main() {
 	networkName := fmt.Sprintf("dm-%v", networkIMvlan.ID[:12])
 
 	var globalLock sync.Mutex
+
+	nextfunc := func(sht Behavior.SimpleHumanTraits) float64 { return float64(sht.GetRandomizer().Int31n(360)) }
+
 	r := rand.New(rand.NewSource(42069))
 	aliceUserType := Types.SimUser{ID: 1, Nickname: "alice", RegularContactList: []string{"2", "3"}}
-	aliceBehavior := Behavior.NewSimpleHumanTraits("SimpleHuman", 0.01, 0.0, 0.0, 1.0, 1.0, 0.0, func(sht Behavior.SimpleHumanTraits) float64 { return 2.0 }, r)
+	aliceBehavior := Behavior.NewSimpleHumanTraits("SimpleHuman", 0.01, 0.0, 0.0, 0.75, 0.45, 0.0, nextfunc, r)
 	simulatedAlice := User.SimulatedUser{Behavior: aliceBehavior, User: &aliceUserType, Client: clientContainers[0], GlobalLock: &globalLock}
 
 	bobUserType := Types.SimUser{ID: 2, Nickname: "bob", RegularContactList: []string{"1", "3"}}
-	bobBehavior := Behavior.NewSimpleHumanTraits("SimpleHuman", 0.01, 0.0, 0.0, 1.0, 1.0, 0.0, func(sht Behavior.SimpleHumanTraits) float64 { return 2.0 }, r)
+	bobBehavior := Behavior.NewSimpleHumanTraits("SimpleHuman", 0.01, 0.0, 0.0, 0.75, 0.45, 0.0, nextfunc, r)
 	simulatedBob := User.SimulatedUser{Behavior: bobBehavior, User: &bobUserType, Client: clientContainers[1], GlobalLock: &globalLock}
 
 	charlieUserType := Types.SimUser{ID: 3, Nickname: "charlie", RegularContactList: []string{"1", "2"}}
-	charlieBehavior := Behavior.NewSimpleHumanTraits("SimpleHuman", 0.01, 0.0, 0.0, 1.0, 1.0, 0.0, func(sht Behavior.SimpleHumanTraits) float64 { return 2.0 }, r)
+	charlieBehavior := Behavior.NewSimpleHumanTraits("SimpleHuman", 0.01, 0.0, 0.0, 0.75, 0.45, 0.0, nextfunc, r)
 	simulatedCharlie := User.SimulatedUser{Behavior: charlieBehavior, User: &charlieUserType, Client: clientContainers[2], GlobalLock: &globalLock}
 
 	users := []*User.SimulatedUser{&simulatedAlice, &simulatedBob, &simulatedCharlie}
 	println("Starting simulation")
-	Simulator.SimulateTraffic(users, 45, networkName)
-
+	Simulator.SimulateTraffic(users, 1800, networkName)
 }

@@ -1,6 +1,7 @@
 package container
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"io"
@@ -325,10 +326,14 @@ func (container *Container) Exec(commands []string, logOutput bool) (*process.Pr
 		return nil, fmt.Errorf("Container Exec failed to attach: %w.", err)
 	}
 	res.Conn.SetReadDeadline(time.Time{})
+	var buffer bytes.Buffer
+
+	tee := io.TeeReader(res.Reader, &buffer)
+	// io.Copy(os.Stdout, tee)
 
 	if logOutput {
-		go logger.LogContainerExec(res.Reader, commands, container.Name)
+		go logger.LogContainerExec(tee, commands, container.Name)
 	}
 
-	return process.NewProcess(res.Conn), nil
+	return process.NewProcess(res.Conn, &buffer), nil
 }

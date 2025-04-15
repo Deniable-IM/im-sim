@@ -1,0 +1,32 @@
+FROM rust:1-alpine3.20 AS build 
+RUN apk update && apk add --no-cache \
+        git \
+        protobuf-dev \
+        openssl \
+        openssl-dev \
+        pkgconfig \
+        build-base \
+        musl-dev 
+
+ENV OPENSSL_DIR=/usr
+ENV OPENSSL_LIB_DIR=/usr/lib
+ENV OPENSSL_INCLUDE_DIR=/usr/include
+
+RUN git clone https://github.com/Deniable-IM/denim.git
+
+# Enable SQLX offline DB compilation
+ENV SQLX_OFFLINE=true
+
+# Build server
+WORKDIR /denim/server
+RUN cargo build --release
+
+FROM alpine:3.20 AS production
+RUN apk update && apk add libgcc && \
+        rm -rf /var/cache/apk/*
+
+COPY --from=build ./denim/target/release/server .
+COPY ./cert/server.crt ./cert/server.key /cert/
+COPY .server.env .env
+
+CMD ["sh", "-c", "while true; do ./server; sleep 1; done"]

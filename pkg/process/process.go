@@ -1,16 +1,18 @@
 package process
 
 import (
+	"bytes"
 	"fmt"
 	"net"
 )
 
 type Process struct {
-	conn net.Conn
+	conn   net.Conn
+	Buffer *bytes.Buffer
 }
 
-func NewProcess(conn net.Conn) *Process {
-	return &Process{conn}
+func NewProcess(conn net.Conn, reader *bytes.Buffer) *Process {
+	return &Process{conn, reader}
 }
 
 func (process *Process) Cmd(cmd []byte) error {

@@ -2,7 +2,6 @@ package logger
 
 import (
 	"bufio"
-	"deniable-im/im-sim/internal/types"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -203,13 +202,13 @@ func LogContainerExec(reader io.Reader, commands []string, containerName string)
 	log := fmt.Sprintf("[*] %s:$ %s\n", containerName, cmd)
 	fmt.Print(GreyForeground.Set(log))
 
-	logSet := make(types.Set[string])
+	// logSet := make(types.Set[string])
 	for scanner.Scan() {
 		text := scanner.Text()
 		if text != "" {
-			if err := logSet.Add(text); err != nil {
-				break
-			}
+			// if err := logSet.Add(text); err != nil {
+			// break
+			// }
 		}
 		fmt.Print(ClearEntireLine)
 		log := fmt.Sprintf("\t%s\n\r", text)
