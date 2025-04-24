@@ -213,15 +213,15 @@ func main() {
 	var globalLock sync.Mutex
 	r := rand.New(rand.NewSource(42069))
 	aliceUserType := Types.SimUser{ID: 1, Nickname: "alice", RegularContactList: []string{"2", "3"}}
-	aliceBehavior := Behavior.NewSimpleHumanTraits("SimpleHuman", 0.01, 0.0, 0.0, 1.0, 1.0, 0.0, func(sht Behavior.SimpleHumanTraits) float64 { return 2.0 }, r)
+	aliceBehavior := Behavior.NewSimpleHumanTraits("SimpleHuman", 0.01, 0.0, 0.0, 1.0, 1.0, 0.0, func(sht *Behavior.SimpleHumanTraits) float64 { return 2.0 }, r)
 	simulatedAlice := User.SimulatedUser{Behavior: aliceBehavior, User: &aliceUserType, Client: clientContainers[0], GlobalLock: &globalLock}
 
 	bobUserType := Types.SimUser{ID: 2, Nickname: "bob", RegularContactList: []string{"1", "3"}}
-	bobBehavior := Behavior.NewSimpleHumanTraits("SimpleHuman", 0.01, 0.0, 0.0, 1.0, 1.0, 0.0, func(sht Behavior.SimpleHumanTraits) float64 { return 2.0 }, r)
+	bobBehavior := Behavior.NewSimpleHumanTraits("SimpleHuman", 0.01, 0.0, 0.0, 1.0, 1.0, 0.0, func(sht *Behavior.SimpleHumanTraits) float64 { return 2.0 }, r)
 	simulatedBob := User.SimulatedUser{Behavior: bobBehavior, User: &bobUserType, Client: clientContainers[1], GlobalLock: &globalLock}
 
 	charlieUserType := Types.SimUser{ID: 3, Nickname: "charlie", RegularContactList: []string{"1", "2"}}
-	charlieBehavior := Behavior.NewSimpleHumanTraits("SimpleHuman", 0.01, 0.0, 0.0, 1.0, 1.0, 0.0, func(sht Behavior.SimpleHumanTraits) float64 { return 2.0 }, r)
+	charlieBehavior := Behavior.NewSimpleHumanTraits("SimpleHuman", 0.01, 0.0, 0.0, 1.0, 1.0, 0.0, func(sht *Behavior.SimpleHumanTraits) float64 { return 2.0 }, r)
 	simulatedCharlie := User.SimulatedUser{Behavior: charlieBehavior, User: &charlieUserType, Client: clientContainers[2], GlobalLock: &globalLock}
 
 	users := []*User.SimulatedUser{&simulatedAlice, &simulatedBob, &simulatedCharlie}

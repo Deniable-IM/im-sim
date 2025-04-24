@@ -9,6 +9,7 @@ import (
 	dockerTypes "github.com/docker/docker/api/types"
 	dockerContainer "github.com/docker/docker/api/types/container"
 	dockerNetwork "github.com/docker/docker/api/types/network"
+	fuzz "github.com/google/gofuzz"
 
 	"deniable-im/im-sim/internal/types"
 	"deniable-im/im-sim/pkg/client"
@@ -212,22 +213,37 @@ func main() {
 
 	var globalLock sync.Mutex
 
-	nextfunc := func(sht Behavior.SimpleHumanTraits) float64 { return float64(sht.GetRandomizer().Int31n(360)) }
+	nextfunc := func(sht *Behavior.SimpleHumanTraits) float64 { return float64(sht.GetRandomizer().Int31n(30)) }
 
 	r := rand.New(rand.NewSource(42069))
-	aliceUserType := Types.SimUser{ID: 1, Nickname: "alice", RegularContactList: []string{"2", "3"}}
-	aliceBehavior := Behavior.NewSimpleHumanTraits("SimpleHuman", 0.01, 0.0, 0.0, 0.75, 0.45, 0.0, nextfunc, r)
-	simulatedAlice := User.SimulatedUser{Behavior: aliceBehavior, User: &aliceUserType, Client: clientContainers[0], GlobalLock: &globalLock}
+	// aliceUserType := Types.SimUser{ID: 1, Nickname: "alice", RegularContactList: []string{"2", "3", "4"}}
+	// aliceBehavior := Behavior.NewSimpleHumanTraits("SimpleHuman", 0.01, 0.0, 0.0, 0.75, 0.45, 0.0, nextfunc, r)
+	// simulatedAlice := User.SimulatedUser{Behavior: aliceBehavior, User: &aliceUserType, Client: clientContainers[0], GlobalLock: &globalLock}
 
-	bobUserType := Types.SimUser{ID: 2, Nickname: "bob", RegularContactList: []string{"1", "3"}}
-	bobBehavior := Behavior.NewSimpleHumanTraits("SimpleHuman", 0.01, 0.0, 0.0, 0.75, 0.45, 0.0, nextfunc, r)
-	simulatedBob := User.SimulatedUser{Behavior: bobBehavior, User: &bobUserType, Client: clientContainers[1], GlobalLock: &globalLock}
+	// bobUserType := Types.SimUser{ID: 2, Nickname: "bob", RegularContactList: []string{"1", "3", "4"}}
+	// bobBehavior := Behavior.NewSimpleHumanTraits("SimpleHuman", 0.01, 0.0, 0.0, 0.8, 0.5, 0.0, nextfunc, r)
+	// simulatedBob := User.SimulatedUser{Behavior: bobBehavior, User: &bobUserType, Client: clientContainers[1], GlobalLock: &globalLock}
 
-	charlieUserType := Types.SimUser{ID: 3, Nickname: "charlie", RegularContactList: []string{"1", "2"}}
-	charlieBehavior := Behavior.NewSimpleHumanTraits("SimpleHuman", 0.01, 0.0, 0.0, 0.75, 0.45, 0.0, nextfunc, r)
-	simulatedCharlie := User.SimulatedUser{Behavior: charlieBehavior, User: &charlieUserType, Client: clientContainers[2], GlobalLock: &globalLock}
+	// charlieUserType := Types.SimUser{ID: 3, Nickname: "charlie", RegularContactList: []string{"1", "2", "4"}}
+	// charlieBehavior := Behavior.NewSimpleHumanTraits("SimpleHuman", 0.01, 0.0, 0.0, 0.70, 0.40, 0.0, nextfunc, r)
+	// simulatedCharlie := User.SimulatedUser{Behavior: charlieBehavior, User: &charlieUserType, Client: clientContainers[2], GlobalLock: &globalLock}
 
-	users := []*User.SimulatedUser{&simulatedAlice, &simulatedBob, &simulatedCharlie}
+	// dorothyUserType := Types.SimUser{ID: 4, Nickname: "dorothy", RegularContactList: []string{"1", "2", "3"}}
+	// dorothyBehavior := Behavior.NewSimpleHumanTraits("SimpleHuman", 0.01, 0.0, 0.0, 0.65, 0.35, 0.0, nextfunc, r)
+	// simulatedDorothy := User.SimulatedUser{Behavior: dorothyBehavior, User: &dorothyUserType, Client: clientContainers[3], GlobalLock: &globalLock}
+
+	// users := []*User.SimulatedUser{&simulatedAlice, &simulatedBob, &simulatedCharlie, &simulatedDorothy}
+
+	user_count := 4
+	users := make([]*User.SimulatedUser, user_count)
+	f := fuzz.NewWithSeed(6942069).NilChance(0)
+
+	for i := 0; i < user_count; i++ {
+		users[i] = &User.SimulatedUser{Behavior: Behavior.FuzzedNewSimpleHumanTraits(*f, nextfunc, r), User: &Types.SimUser{ID: int32(i), Nickname: fmt.Sprintf("%v", i)}, Client: clientContainers[i], GlobalLock: &globalLock}
+	}
+
+	User.CreateCommunicationNetwork(users, 2, 3, r)
+
 	println("Starting simulation")
-	Simulator.SimulateTraffic(users, 1800, networkName)
+	Simulator.SimulateTraffic(users, 3600, networkName)
 }

@@ -2,6 +2,7 @@ package Behavior
 
 import (
 	"fmt"
+	"math"
 	"math/rand"
 	"strings"
 
@@ -11,7 +12,7 @@ import (
 type PureProbabilityDistribution struct {
 	Name                string
 	Rate                float64
-	ProbabilityFunction func(*PureProbabilityDistribution) float64
+	probabilityFunction func(*PureProbabilityDistribution) float64
 	DeniableModifier    float64
 	DeniableProb        float64
 	randomizer          *rand.Rand
@@ -36,7 +37,7 @@ func (q *PureProbabilityDistribution) GetNextMessageTime() float64 {
 	if q == nil {
 		return 0
 	}
-	return q.ProbabilityFunction(q)
+	return q.probabilityFunction(q)
 }
 
 func (q *PureProbabilityDistribution) SendRegularMsg() bool {
@@ -55,14 +56,18 @@ func (q *PureProbabilityDistribution) WillRespond() bool {
 	return false
 }
 
+func (q *PureProbabilityDistribution) GetResponseTime(max float64) float64 {
+	return math.Min(max, q.probabilityFunction(q))
+}
+
 func NewPureProbabilityDistribution(name string, rate float64, distribution func(*PureProbabilityDistribution) float64, deniable_mod, deniable_prop float64, randomizer *rand.Rand) *PureProbabilityDistribution {
-	return &PureProbabilityDistribution{Name: name, Rate: rate, ProbabilityFunction: distribution, DeniableModifier: deniable_mod, DeniableProb: deniable_prop, randomizer: randomizer}
+	return &PureProbabilityDistribution{Name: name, Rate: rate, probabilityFunction: distribution, DeniableModifier: deniable_mod, DeniableProb: deniable_prop, randomizer: randomizer}
 }
 
 func NewFuzzedPureProbabilityDistribution(fuzzer *fuzz.Fuzzer, distribution func(*PureProbabilityDistribution) float64, randomizer *rand.Rand) *PureProbabilityDistribution {
 	var q PureProbabilityDistribution
 	fuzzer.Fuzz(&q)
-	q.ProbabilityFunction = distribution
+	q.probabilityFunction = distribution
 	q.randomizer = randomizer
 
 	return &q

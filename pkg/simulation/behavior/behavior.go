@@ -9,4 +9,5 @@ type Behavior interface {
 	SendRegularMsg() bool
 	SendDeniableMsg() bool
 	WillRespond() bool
+	GetResponseTime(float64) float64
 }

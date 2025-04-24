@@ -2,6 +2,7 @@ package Behavior
 
 import (
 	"fmt"
+	"math"
 	"math/rand"
 	"strings"
 
@@ -17,7 +18,7 @@ type SimpleHumanTraits struct {
 	SendProp          float64
 	ResponseProb      float64
 	DeniableProb      float64
-	NextMsgFunc       func(SimpleHumanTraits) float64
+	nextMsgFunc       func(*SimpleHumanTraits) float64
 	randomizer        *rand.Rand
 }
 
@@ -36,7 +37,7 @@ func (sh *SimpleHumanTraits) GetNextMessageTime() float64 {
 		return 0
 	}
 
-	next := sh.NextMsgFunc(*sh)
+	next := sh.nextMsgFunc(sh)
 
 	return next
 }
@@ -69,14 +70,22 @@ func (sh *SimpleHumanTraits) SendDeniableMsg() bool {
 	return sh.randomizer.Float64() > (1.0 - sh.DeniableProb)
 }
 
-func NewSimpleHumanTraits(name string, send_rate, forget_rate, rhythm, send_prop, response, deniable_prop float64, next_func func(SimpleHumanTraits) float64, r *rand.Rand) *SimpleHumanTraits {
-	return &SimpleHumanTraits{Name: name, SendRate: send_rate, ForgetRate: forget_rate, Rhythm: rhythm, SendProp: send_prop, ResponseProb: response, DeniableProb: deniable_prop, NextMsgFunc: next_func, randomizer: r}
+func (sh *SimpleHumanTraits) GetResponseTime(max float64) float64 {
+	if sh == nil {
+		return 0
+	}
+
+	return math.Min(max, sh.nextMsgFunc(sh))
 }
 
-func FuzzedNewSimpleHumanTraits(fuzzer fuzz.Fuzzer, next_func func(SimpleHumanTraits) float64, r *rand.Rand) *SimpleHumanTraits {
+func NewSimpleHumanTraits(name string, send_rate, forget_rate, rhythm, send_prop, response, deniable_prop float64, next_func func(*SimpleHumanTraits) float64, r *rand.Rand) *SimpleHumanTraits {
+	return &SimpleHumanTraits{Name: name, SendRate: send_rate, ForgetRate: forget_rate, Rhythm: rhythm, SendProp: send_prop, ResponseProb: response, DeniableProb: deniable_prop, nextMsgFunc: next_func, randomizer: r}
+}
+
+func FuzzedNewSimpleHumanTraits(fuzzer fuzz.Fuzzer, next_func func(*SimpleHumanTraits) float64, r *rand.Rand) *SimpleHumanTraits {
 	var sh SimpleHumanTraits
 	fuzzer.Fuzz(&sh)
-	sh.NextMsgFunc = next_func
+	sh.nextMsgFunc = next_func
 	sh.randomizer = r
 
 	return &sh

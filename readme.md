@@ -18,11 +18,11 @@ This repository depends on tshark which can be found in most package managers su
 ```bash
 apt install tshark
 ```
-You need to change your permisisons such that you are part of the wireshark group
+You need to change the permisisons for your user such that it is part of the wireshark group as outlined in the [wireshark readme](https://gitlab.com/wireshark/wireshark/-/raw/master/packaging/debian/README.Debian). 
 ```bash
 sudo usermod -a -G wireshark $USER
 ```
-It is probably not ideal to be part of this group long-term so you might want to remove yourself from the group when you are done with this repositoty
+It is probably not ideal to be part of this group long-term so you might want to remove yourself from the group when you are done with this repository.
 
 ## Commands
 
