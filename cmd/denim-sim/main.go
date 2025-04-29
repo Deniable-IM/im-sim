@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"math/rand"
-	"sync"
 	"time"
 
 	dockerTypes "github.com/docker/docker/api/types"
@@ -211,11 +210,10 @@ func main() {
 
 	networkName := fmt.Sprintf("dm-%v", networkIMvlan.ID[:12])
 
-	var globalLock sync.Mutex
-
-	nextfunc := func(sht *Behavior.SimpleHumanTraits) float64 { return float64(sht.GetRandomizer().Int31n(30)) }
+	nextfunc := func(sht *Behavior.SimpleHumanTraits) float64 { return float64(sht.GetRandomizer().Int31n(60)) }
 
 	r := rand.New(rand.NewSource(42069))
+
 	// aliceUserType := Types.SimUser{ID: 1, Nickname: "alice", RegularContactList: []string{"2", "3", "4"}}
 	// aliceBehavior := Behavior.NewSimpleHumanTraits("SimpleHuman", 0.01, 0.0, 0.0, 0.75, 0.45, 0.0, nextfunc, r)
 	// simulatedAlice := User.SimulatedUser{Behavior: aliceBehavior, User: &aliceUserType, Client: clientContainers[0], GlobalLock: &globalLock}
@@ -234,15 +232,15 @@ func main() {
 
 	// users := []*User.SimulatedUser{&simulatedAlice, &simulatedBob, &simulatedCharlie, &simulatedDorothy}
 
-	user_count := 4
+	user_count := 100
 	users := make([]*User.SimulatedUser, user_count)
 	f := fuzz.NewWithSeed(6942069).NilChance(0)
 
 	for i := 0; i < user_count; i++ {
-		users[i] = &User.SimulatedUser{Behavior: Behavior.FuzzedNewSimpleHumanTraits(*f, nextfunc, r), User: &Types.SimUser{ID: int32(i), Nickname: fmt.Sprintf("%v", i)}, Client: clientContainers[i], GlobalLock: &globalLock}
+		users[i] = &User.SimulatedUser{Behavior: Behavior.FuzzedNewSimpleHumanTraits(*f, nextfunc, r), User: &Types.SimUser{ID: int32(i), Nickname: fmt.Sprintf("%v", i)}, Client: clientContainers[i]}
 	}
 
-	User.CreateCommunicationNetwork(users, 2, 3, r)
+	User.CreateCommunicationNetwork(users, 5, 15, r)
 
 	println("Starting simulation")
 	Simulator.SimulateTraffic(users, 3600, networkName)

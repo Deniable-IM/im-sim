@@ -18,6 +18,7 @@ type SimLogger struct {
 type UserInfo struct {
 	User     Types.SimUser
 	Behavior Behavior.Behavior
+	UserIP   string
 }
 
 func (sl *SimLogger) InitLogging(kill chan bool) (chan Types.MsgEvent, error) {

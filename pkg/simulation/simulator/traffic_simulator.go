@@ -20,14 +20,19 @@ func SimulateTraffic(users []*SimulatedUser.SimulatedUser, simTime int64, networ
 	for i, user := range users {
 		users_to_log[i].User = (*user.User)
 		users_to_log[i].Behavior = user.Behavior
+		for _, ip := range (*user).Client.Options.Connections {
+			users_to_log[i].UserIP = *ip.IPv4
+			break
+		}
 	}
 	logger.LogSimUsers(users_to_log)
 
-	cmd, cerr := tshark.RunTshark(networkInterface, logger.Dir, simTime+5)
+	cmd, cerr := tshark.RunTshark(networkInterface, logger.Dir, simTime+3)
 	if cerr != nil {
 		return
 	}
 	defer cmd.Wait()
+	time.Sleep(2 * time.Second) //Allows tshark to start up properly and start packet capture
 
 	for _, user := range users {
 		go user.StartMessaging(end_signal, msgChan)

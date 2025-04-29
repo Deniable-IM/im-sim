@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"math/rand"
 	"strings"
-	"sync"
 	"time"
 )
 
@@ -21,8 +20,6 @@ type SimulatedUser struct {
 	stopChan     chan bool
 	logger       chan Types.MsgEvent
 	Process      *Process.Process
-	mu           sync.Mutex
-	GlobalLock   *sync.Mutex
 	nextSendTime time.Time
 }
 
@@ -49,9 +46,7 @@ func (su *SimulatedUser) StartMessaging(stop chan bool, logger chan Types.MsgEve
 	for {
 		select {
 		case <-su.stopChan:
-			su.mu.Lock()
 			su.Process.Cmd([]byte("read\n"))
-			su.mu.Unlock()
 			return
 		default:
 			time_to_next_message := su.Behavior.GetNextMessageTime()
@@ -116,15 +111,8 @@ func (su *SimulatedUser) SendMessage(msg Types.Msg) {
 		return
 	}
 
-	su.logger <- Types.MsgEvent{Msg: msg, EventType: "Send"}
-
-	// Ensures messages are sent to the docker container at a rate it can handle
-	// su.GlobalLock.Lock()
-	su.mu.Lock()
 	su.Process.Cmd([]byte(fmt.Sprintf("%v\n", msg.MsgContent)))
-	su.mu.Unlock()
-	// time.Sleep(50 * time.Millisecond) //Important to avoid fucking processes, if I knew why I would fix the root problem
-	// su.GlobalLock.Unlock()
+	su.logger <- Types.MsgEvent{Msg: msg, EventType: "Send"}
 }
 
 func (su *SimulatedUser) OnReceive(msg Types.Msg) {
@@ -158,9 +146,7 @@ func (su *SimulatedUser) MessageListener() {
 			break
 		default:
 			time.Sleep(time.Duration(readTimeout * time.Second))
-			su.mu.Lock()
 			su.Process.Cmd([]byte("read\n"))
-			su.mu.Unlock()
 			for su.Process.Buffer.Len() != 0 {
 				line, err := su.Process.Buffer.ReadString(byte('\n'))
 				if len(line) == 0 {

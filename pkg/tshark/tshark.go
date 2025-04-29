@@ -6,7 +6,7 @@ import (
 	"os/exec"
 )
 
-func RunTshark(networkInterface, dir string, duration int64) (*exec.Cmd, error) {
+func RunTshark(networkInterfaceName, dir string, duration int64) (*exec.Cmd, error) {
 	filename := fmt.Sprintf("%v/capture.pcapng", dir)
 	file, err := os.Create(filename)
 	if err != nil {
@@ -20,7 +20,7 @@ func RunTshark(networkInterface, dir string, duration int64) (*exec.Cmd, error) 
 		return nil, chmodErr
 	}
 
-	cmd := exec.Command("tshark", "-i", networkInterface, "-a", fmt.Sprintf("duration:%v", duration), "-F", "pcapng", "-w", filename)
+	cmd := exec.Command("tshark", "-i", networkInterfaceName, "-a", fmt.Sprintf("duration:%v", duration), "-F", "pcapng", "-w", filename)
 
 	cmdErr := cmd.Start()
 	if cmdErr != nil {

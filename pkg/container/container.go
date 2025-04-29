@@ -327,7 +327,6 @@ func (container *Container) Exec(commands []string, logOutput bool) (*process.Pr
 	}
 	res.Conn.SetReadDeadline(time.Time{})
 	var buffer bytes.Buffer
-	println(res.MediaType())
 
 	tee := io.TeeReader(res.Reader, &buffer)
 
