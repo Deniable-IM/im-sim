@@ -11,7 +11,7 @@ import (
 	"time"
 )
 
-const readTimeout = 1
+const readTimeout = 0.2
 
 type SimulatedUser struct {
 	Behavior     Behavior.Behavior
@@ -94,6 +94,7 @@ func (su *SimulatedUser) MakeMessages() []Types.Msg {
 		den_target := su.User.DeniableContactList[su.Behavior.GetRandomizer().Intn(len(su.User.DeniableContactList))]
 		den_msg := su.makeDeniableMessage(den_target)
 		msgs = append(msgs, den_msg)
+		su.Behavior.IncrementDeniableCount()
 	}
 
 	//Mayhaps make more than one regular message per call? Idk anymore, all of this is horrible to simulate
@@ -127,12 +128,17 @@ func (su *SimulatedUser) OnReceive(msg Types.Msg) {
 		return
 	}
 
+	var res Types.Msg
 	//TODO: Determine whether the message is regular or the entirety of a deniable message has been received
+	if msg.IsDeniable {
+		res = su.makeDeniableMessage(msg.From)
+		res.MsgContent = fmt.Sprintf("denim:%v:Me when Im responding deniably to %v as %v", res.To, res.To, res.From)
+	} else {
+		res = su.makeRegularMessage(msg.From)
+		res.MsgContent = fmt.Sprintf("send:%v:Me when Im responding to %v as %v", res.To, res.To, res.From)
+	}
 
-	res := su.makeRegularMessage(msg.From)
-	res.MsgContent = fmt.Sprintf("send:%v:Me when Im responding to %v as %v", res.To, res.To, res.From)
-
-	remaining := su.nextSendTime.Sub(time.Now()).Seconds() - 2 //Magic number to ensure the IMD does not get too small
+	remaining := su.nextSendTime.Sub(time.Now()).Seconds()
 	sleep_time := su.Behavior.GetResponseTime(remaining)
 	time.Sleep(time.Duration(sleep_time * float64(time.Second)))
 
@@ -145,7 +151,7 @@ func (su *SimulatedUser) MessageListener() {
 		case <-su.stopChan:
 			break
 		default:
-			time.Sleep(time.Duration(readTimeout * time.Second))
+			time.Sleep(time.Duration(readTimeout * float64(time.Second)))
 			su.Process.Cmd([]byte("read\n"))
 			for su.Process.Buffer.Len() != 0 {
 				line, err := su.Process.Buffer.ReadString(byte('\n'))
@@ -172,24 +178,37 @@ func (su *SimulatedUser) MessageListener() {
 					continue
 				}
 
-				sender = sender[8:len(sender)]
-				if sender == "\n" {
-					continue
-				}
-				for _, name := range su.User.RegularContactList {
-					if sender == name {
-						msg := Types.Msg{To: fmt.Sprintf("%v", su.User.ID), From: name, MsgContent: splits[1], IsDeniable: false}
-						go su.OnReceive(msg)
-						break
+				isDeniable := strings.Contains(sender, "deniable")
+
+				if !isDeniable {
+					sender = sender[8:len(sender)]
+					if sender == "\n" {
+						continue
 					}
 				}
 
-				for _, name := range su.User.DeniableContactList {
-					if sender == name {
-						msg := Types.Msg{To: fmt.Sprintf("%v", su.User.ID), From: name, MsgContent: splits[1], IsDeniable: true}
-						go su.OnReceive(msg)
-						break
+				if isDeniable {
+					sender = sender[9:len(sender)]
+					for _, name := range su.User.DeniableContactList {
+						if sender == name {
+							msg := Types.Msg{To: fmt.Sprintf("%v", su.User.ID), From: name, MsgContent: splits[1], IsDeniable: true}
+							go su.OnReceive(msg)
+							break
+						}
 					}
+				} else {
+					for _, name := range su.User.RegularContactList {
+						if sender == name {
+							msg := Types.Msg{To: fmt.Sprintf("%v", su.User.ID), From: name, MsgContent: splits[1], IsDeniable: false}
+							go su.OnReceive(msg)
+							break
+						}
+					}
+				}
+
+				if sender == "Unknown Sender" {
+					msg := Types.Msg{To: fmt.Sprintf("%v", su.User.ID), From: sender, MsgContent: splits[1], IsDeniable: isDeniable}
+					su.logger <- Types.MsgEvent{Msg: msg, EventType: "Receive"}
 				}
 			}
 		}
@@ -256,6 +275,74 @@ func CreateCommunicationNetwork(users []*SimulatedUser, min_contact_count, max_c
 				}
 			} else {
 				users[bob_index].User.RegularContactList = append(users[bob_index].User.RegularContactList, alice.User.Nickname)
+			}
+		}
+	}
+
+	return users
+}
+
+func CreateDeniableNetwork(users []*SimulatedUser, min_contact_count, max_contact_count int, r *rand.Rand) []*SimulatedUser {
+	max_index := len(users)
+	if max_contact_count < min_contact_count {
+		panic("Max contact count cannot be less than min contact count")
+	}
+
+	if max_index < max_contact_count {
+		panic("Max contact count can not be larger than the number of users being assigned contacts")
+	}
+
+	for i := range users {
+		contact_count := r.Intn(max_contact_count-min_contact_count) + min_contact_count
+		(users)[i].User.DeniableContactList = make([]string, contact_count)
+	}
+
+	for index, alice := range users {
+		for i, v := range alice.User.DeniableContactList {
+			if v != "" {
+				continue
+			}
+			var bob_index int
+			//Find new contact not already in Alice's contact list
+			for {
+				bob_index = r.Intn(max_index)
+				if index == bob_index {
+					continue
+				}
+
+				retry := false
+
+				for _, id := range alice.User.RegularContactList {
+					if id == users[bob_index].User.Nickname {
+						retry = true
+						break
+					}
+				}
+
+				for _, id := range alice.User.DeniableContactList {
+					if id == users[bob_index].User.Nickname {
+						retry = true
+						break
+					}
+				}
+
+				if !retry {
+					break
+				}
+			}
+
+			users[index].User.DeniableContactList[i] = users[bob_index].User.Nickname
+
+			//Add to Bob's contact list or append if existing contact list is full
+			if users[bob_index].User.DeniableContactList[len(users[bob_index].User.DeniableContactList)-1] == "" {
+				for j, val := range users[bob_index].User.DeniableContactList {
+					if val == "" {
+						users[bob_index].User.DeniableContactList[j] = alice.User.Nickname
+						break
+					}
+				}
+			} else {
+				users[bob_index].User.DeniableContactList = append(users[bob_index].User.DeniableContactList, alice.User.Nickname)
 			}
 		}
 	}

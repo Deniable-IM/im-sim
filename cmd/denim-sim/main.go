@@ -8,7 +8,6 @@ import (
 	dockerTypes "github.com/docker/docker/api/types"
 	dockerContainer "github.com/docker/docker/api/types/container"
 	dockerNetwork "github.com/docker/docker/api/types/network"
-	fuzz "github.com/google/gofuzz"
 
 	"deniable-im/im-sim/internal/types"
 	"deniable-im/im-sim/pkg/client"
@@ -210,7 +209,15 @@ func main() {
 
 	networkName := fmt.Sprintf("dm-%v", networkIMvlan.ID[:12])
 
-	nextfunc := func(sht *Behavior.SimpleHumanTraits) float64 { return float64(sht.GetRandomizer().Int31n(60)) }
+	nextfunc := func(sht *Behavior.SimpleHumanTraits) float64 {
+		var next float64 = 10
+		if sht.IsBursting() {
+			next = next * sht.BurstModifier
+			sht.DeniableBurstSize -= 1
+		}
+
+		return float64(sht.GetRandomizer().Int31n(int32(next)))
+	}
 
 	r := rand.New(rand.NewSource(42069))
 
@@ -234,14 +241,16 @@ func main() {
 
 	user_count := 100
 	users := make([]*User.SimulatedUser, user_count)
-	f := fuzz.NewWithSeed(6942069).NilChance(0)
-
+	// f := fuzz.NewWithSeed(6942069).NilChance(0)
+	traits := Behavior.GenerateRealisticSimpleHumanTraits(user_count, nil, nextfunc)
 	for i := 0; i < user_count; i++ {
-		users[i] = &User.SimulatedUser{Behavior: Behavior.FuzzedNewSimpleHumanTraits(*f, nextfunc, r), User: &Types.SimUser{ID: int32(i), Nickname: fmt.Sprintf("%v", i)}, Client: clientContainers[i]}
+		traits[i].ResponseProb += 0.2
+		users[i] = &User.SimulatedUser{Behavior: traits[i], User: &Types.SimUser{ID: int32(i), Nickname: fmt.Sprintf("%v", i)}, Client: clientContainers[i]}
 	}
 
-	User.CreateCommunicationNetwork(users, 5, 15, r)
+	User.CreateCommunicationNetwork(users, 2, 4, r)
+	User.CreateDeniableNetwork(users, 1, 2, r)
 
 	println("Starting simulation")
-	Simulator.SimulateTraffic(users, 3600, networkName)
+	Simulator.SimulateTraffic(users, 2*3600, networkName)
 }
