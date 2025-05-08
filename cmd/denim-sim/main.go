@@ -245,6 +245,7 @@ func main() {
 	traits := Behavior.GenerateRealisticSimpleHumanTraits(user_count, nil, nextfunc)
 	for i := 0; i < user_count; i++ {
 		traits[i].ResponseProb += 0.2
+		traits[i].DeniableBurstSize = 0
 		users[i] = &User.SimulatedUser{Behavior: traits[i], User: &Types.SimUser{ID: int32(i), Nickname: fmt.Sprintf("%v", i)}, Client: clientContainers[i]}
 	}
 

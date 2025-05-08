@@ -11,4 +11,5 @@ type Behavior interface {
 	WillRespond() bool
 	IncrementDeniableCount()
 	GetResponseTime(float64) float64
+	IsBursting() bool
 }
