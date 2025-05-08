@@ -4,6 +4,7 @@ import (
 	Container "deniable-im/im-sim/pkg/container"
 	Process "deniable-im/im-sim/pkg/process"
 	Behavior "deniable-im/im-sim/pkg/simulation/behavior"
+	Messagemaker "deniable-im/im-sim/pkg/simulation/messagemaker"
 	Types "deniable-im/im-sim/pkg/simulation/types"
 	"fmt"
 	"math/rand"
@@ -68,10 +69,9 @@ func (su *SimulatedUser) makeRegularMessage(target string) Types.Msg {
 	}
 
 	var b strings.Builder
-	fmt.Fprintf(&b, "send:%v:Hello %v this is %v sending you a regular message Fuck the alphabet boys reading this", target, target, su.User.Nickname)
+	fmt.Fprintf(&b, "send:%v:Hello %v %v", target, target, Messagemaker.GetQuoteByIndexSafe(int(su.Behavior.GetRandomizer().Int31())))
 
 	msg := Types.Msg{To: target, From: fmt.Sprintf("%v", su.User.ID), MsgContent: b.String(), IsDeniable: false}
-
 	return msg
 }
 
@@ -80,7 +80,7 @@ func (su *SimulatedUser) makeDeniableMessage(target string) Types.Msg {
 		return Types.Msg{}
 	}
 	var b strings.Builder
-	fmt.Fprintf(&b, "denim:%v:Hello %v this is %v sending you a deniable message Fuck the alphabet boys reading this", target, target, su.User.Nickname)
+	fmt.Fprintf(&b, "denim:%v:Hello %v deniable quote just for you %v", target, target, Messagemaker.GetQuoteByIndexSafe(int(su.Behavior.GetRandomizer().Int31())))
 
 	msg := Types.Msg{To: target, From: fmt.Sprintf("%v", su.User.ID), MsgContent: b.String(), IsDeniable: true}
 	return msg
