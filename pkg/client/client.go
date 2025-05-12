@@ -12,11 +12,24 @@ type Client struct {
 	Cli *client.Client
 }
 
-func NewClient() (*Client, error) {
+// Use local or remote host ("tcp://remote-host:2375")
+func NewClient(host *string) (*Client, error) {
 	ctx := context.Background()
-	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
-	if err != nil {
-		return nil, fmt.Errorf("Failed to create client: %w", err)
+
+	// Use remote docker engine
+	if host != nil {
+		cli, err := client.NewClientWithOpts(client.WithHost(*host), client.WithAPIVersionNegotiation())
+		if err != nil {
+			return nil, fmt.Errorf("Failed to create client: %w", err)
+		}
+		return &Client{ctx, cli}, nil
+	} else {
+		// Use local docker engine
+		cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
+		if err != nil {
+			return nil, fmt.Errorf("Failed to create client: %w", err)
+		}
+		return &Client{ctx, cli}, nil
 	}
 	return &Client{ctx, cli}, nil
 }
