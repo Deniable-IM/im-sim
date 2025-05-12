@@ -98,7 +98,7 @@ func (su *SimulatedUser) MakeMessages() []Types.Msg {
 	}
 
 	//Mayhaps make more than one regular message per call? Idk anymore, all of this is horrible to simulate
-	if su.Behavior.SendRegularMsg() && len(su.User.RegularContactList) != 0 || su.Behavior.IsBursting() && len(su.User.RegularContactList) != 0 {
+	if (su.Behavior.SendRegularMsg() || su.Behavior.IsBursting()) && len(su.User.RegularContactList) != 0 {
 		reg_target := su.User.RegularContactList[su.Behavior.GetRandomizer().Intn(len(su.User.RegularContactList))]
 		reg_msg := su.makeRegularMessage(reg_target)
 		msgs = append(msgs, reg_msg)
@@ -132,10 +132,10 @@ func (su *SimulatedUser) OnReceive(msg Types.Msg) {
 	//TODO: Determine whether the message is regular or the entirety of a deniable message has been received
 	if msg.IsDeniable {
 		res = su.makeDeniableMessage(msg.From)
-		res.MsgContent = fmt.Sprintf("denim:%v:Me when Im responding deniably to %v as %v", res.To, res.To, res.From)
+		res.MsgContent = fmt.Sprintf("denim:%v:Hello %v deniable quote for you %v", res.To, res.To, Messagemaker.GetQuoteByIndexSafe(int(su.Behavior.GetRandomizer().Int31())))
 	} else {
 		res = su.makeRegularMessage(msg.From)
-		res.MsgContent = fmt.Sprintf("send:%v:Me when Im responding to %v as %v", res.To, res.To, res.From)
+		res.MsgContent = fmt.Sprintf("send:%v:Hello %v quote for you %v", res.To, res.To, Messagemaker.GetQuoteByIndexSafe(int(su.Behavior.GetRandomizer().Int31())))
 	}
 
 	remaining := su.nextSendTime.Sub(time.Now()).Seconds()

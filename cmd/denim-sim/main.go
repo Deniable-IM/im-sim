@@ -221,31 +221,13 @@ func main() {
 
 	r := rand.New(rand.NewSource(42069))
 
-	// aliceUserType := Types.SimUser{ID: 1, Nickname: "alice", RegularContactList: []string{"2", "3", "4"}}
-	// aliceBehavior := Behavior.NewSimpleHumanTraits("SimpleHuman", 0.01, 0.0, 0.0, 0.75, 0.45, 0.0, nextfunc, r)
-	// simulatedAlice := User.SimulatedUser{Behavior: aliceBehavior, User: &aliceUserType, Client: clientContainers[0], GlobalLock: &globalLock}
-
-	// bobUserType := Types.SimUser{ID: 2, Nickname: "bob", RegularContactList: []string{"1", "3", "4"}}
-	// bobBehavior := Behavior.NewSimpleHumanTraits("SimpleHuman", 0.01, 0.0, 0.0, 0.8, 0.5, 0.0, nextfunc, r)
-	// simulatedBob := User.SimulatedUser{Behavior: bobBehavior, User: &bobUserType, Client: clientContainers[1], GlobalLock: &globalLock}
-
-	// charlieUserType := Types.SimUser{ID: 3, Nickname: "charlie", RegularContactList: []string{"1", "2", "4"}}
-	// charlieBehavior := Behavior.NewSimpleHumanTraits("SimpleHuman", 0.01, 0.0, 0.0, 0.70, 0.40, 0.0, nextfunc, r)
-	// simulatedCharlie := User.SimulatedUser{Behavior: charlieBehavior, User: &charlieUserType, Client: clientContainers[2], GlobalLock: &globalLock}
-
-	// dorothyUserType := Types.SimUser{ID: 4, Nickname: "dorothy", RegularContactList: []string{"1", "2", "3"}}
-	// dorothyBehavior := Behavior.NewSimpleHumanTraits("SimpleHuman", 0.01, 0.0, 0.0, 0.65, 0.35, 0.0, nextfunc, r)
-	// simulatedDorothy := User.SimulatedUser{Behavior: dorothyBehavior, User: &dorothyUserType, Client: clientContainers[3], GlobalLock: &globalLock}
-
-	// users := []*User.SimulatedUser{&simulatedAlice, &simulatedBob, &simulatedCharlie, &simulatedDorothy}
-
 	user_count := 100
 	users := make([]*User.SimulatedUser, user_count)
 	// f := fuzz.NewWithSeed(6942069).NilChance(0)
 	traits := Behavior.GenerateRealisticSimpleHumanTraits(user_count, nil, nextfunc)
 	for i := 0; i < user_count; i++ {
 		traits[i].ResponseProb += 0.2
-		traits[i].DeniableBurstSize = 0
+		// traits[i].DeniableBurstSize = 0
 		users[i] = &User.SimulatedUser{Behavior: traits[i], User: &Types.SimUser{ID: int32(i), Nickname: fmt.Sprintf("%v", i)}, Client: clientContainers[i]}
 	}
 

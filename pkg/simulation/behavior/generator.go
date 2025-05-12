@@ -1,6 +1,7 @@
 package Behavior
 
 import (
+	Types "deniable-im/im-sim/pkg/simulation/types"
 	"fmt"
 	"math/rand"
 )
@@ -21,7 +22,6 @@ const MAX_MIN_DIFF = 0.2
 // 58: send: 0.161, resp: 0.380
 
 func GenerateRealisticSimpleHumanTraits(count int, r *rand.Rand, nfunc func(*SimpleHumanTraits) float64) []*SimpleHumanTraits {
-
 	traits := make([]*SimpleHumanTraits, count)
 	goodSendValues := []float64{0.375, 0.584, 0.751, 0.285, 0.182, 0.200, 0.380, 0.357, 0.181, 0.184, 0.161}
 	var goodSendAvg float64
@@ -60,6 +60,35 @@ func GenerateRealisticSimpleHumanTraits(count int, r *rand.Rand, nfunc func(*Sim
 		fmt.Printf("Post increment send: %v, reply: %v \n", send, reply)
 
 		traits[i] = NewSimpleHumanTraits(fmt.Sprintf("%v", i), send, reply, 0.1, 0.1, 10, nfunc, rand_param)
+	}
+
+	return traits
+}
+
+func GenerateSimpleHumanTraitsFromOptions(count int, nextfunc func(*SimpleHumanTraits) float64, options Types.SimUserOptions) []*SimpleHumanTraits {
+	//Todo: Check if any struct field is nil and panic
+	if options.HasNil() {
+		panic("No nils in options struct!!!")
+	}
+
+	traits := make([]*SimpleHumanTraits, count)
+	MaxMinRegularDiff := options.MinMaxRegularProbabiity.Second - options.MinMaxRegularProbabiity.First
+	MaxMinDenDiff := options.MinMaxDeniableProbability.Second - options.MinMaxDeniableProbability.First
+	MaxMinReplyDiff := options.MinMaxReplyProbability.Second - options.MinMaxReplyProbability.First
+
+	var rand_param *rand.Rand
+	if options.Seed != nil {
+		rand_param = rand.New(rand.NewSource(*options.Seed))
+	} else {
+		rand_param = rand.New(rand.NewSource(rand.Int63()))
+	}
+
+	for i := range traits {
+		send := rand_param.Float64()*MaxMinRegularDiff + options.MinMaxRegularProbabiity.First
+		den := rand_param.Float64()*MaxMinDenDiff + options.MinMaxDeniableProbability.First
+		reply := rand_param.Float64()*MaxMinReplyDiff + options.MinMaxReplyProbability.First
+
+		traits[i] = NewSimpleHumanTraits(fmt.Sprintf("%v", i), send, reply, den, *options.BurstModifier, int32(*options.BurstSize), nextfunc, rand_param)
 	}
 
 	return traits
