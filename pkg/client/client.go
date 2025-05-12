@@ -31,7 +31,6 @@ func NewClient(host *string) (*Client, error) {
 		}
 		return &Client{ctx, cli}, nil
 	}
-	return &Client{ctx, cli}, nil
 }
 
 func (client *Client) Close() error {
