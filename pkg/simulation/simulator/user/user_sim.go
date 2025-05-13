@@ -51,7 +51,7 @@ func (su *SimulatedUser) StartMessaging(stop chan bool, logger chan Types.MsgEve
 			return
 		default:
 			time_to_next_message := su.Behavior.GetNextMessageTime()
-			dur := time.Duration(time.Duration(time_to_next_message) * time.Millisecond)
+			dur := time.Duration(time_to_next_message * int(time.Millisecond))
 			su.nextSendTime = time.Now().Add(dur)
 			time.Sleep(dur)
 			msgs := su.MakeMessages()
@@ -83,6 +83,7 @@ func (su *SimulatedUser) makeDeniableMessage(target string) Types.Msg {
 	fmt.Fprintf(&b, "denim:%v:Hello %v deniable quote just for you %v", target, target, Messagemaker.GetQuoteByIndexSafe(int(su.Behavior.GetRandomizer().Int31())))
 
 	msg := Types.Msg{To: target, From: fmt.Sprintf("%v", su.User.ID), MsgContent: b.String(), IsDeniable: true}
+	su.Behavior.IncrementDeniableCount()
 	return msg
 }
 
@@ -94,7 +95,6 @@ func (su *SimulatedUser) MakeMessages() []Types.Msg {
 		den_target := su.User.DeniableContactList[su.Behavior.GetRandomizer().Intn(len(su.User.DeniableContactList))]
 		den_msg := su.makeDeniableMessage(den_target)
 		msgs = append(msgs, den_msg)
-		su.Behavior.IncrementDeniableCount()
 	}
 
 	//Mayhaps make more than one regular message per call? Idk anymore, all of this is horrible to simulate
