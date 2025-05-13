@@ -15,7 +15,7 @@ clear:
 
 reset:
 	make stop
-	y | docker container prune
+	echo y | docker container prune
 	docker network rm IMvlan
 	docker network rm backend
 	
