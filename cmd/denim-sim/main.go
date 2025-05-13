@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"math/rand"
 	"time"
 
 	dockerTypes "github.com/docker/docker/api/types"
@@ -17,7 +16,6 @@ import (
 	Behavior "deniable-im/im-sim/pkg/simulation/behavior"
 	"deniable-im/im-sim/pkg/simulation/manager"
 	Simulator "deniable-im/im-sim/pkg/simulation/simulator"
-	User "deniable-im/im-sim/pkg/simulation/simulator/user"
 	Types "deniable-im/im-sim/pkg/simulation/types"
 )
 
@@ -218,13 +216,11 @@ func main() {
 		var next float64 = 10000 //Max time in milliseconds
 		if sht.IsBursting() {
 			next = next * sht.BurstModifier
-			sht.DeniableBurstSize -= 1
+			sht.DeniableCount -= 1
 		}
 
 		return int(sht.GetRandomizer().Int31n(int32(next)))
 	}
-
-	r := rand.New(rand.NewSource(42069))
 
 	burstMod := 0.1
 	burstSize := 10
@@ -242,9 +238,12 @@ func main() {
 	}
 	options.HasNil()
 
-	users := manager.MakeSimUsersFromOptions(user_count, clientContainers, nextfunc, nil)
-	User.CreateCommunicationNetwork(users, 2, 4, r)
-	User.CreateDeniableNetwork(users, 1, 2, r)
+	// users := manager.MakeSimUsersFromOptions(user_count, clientContainers, nextfunc, nil)
+	// r := rand.New(rand.NewSource(42069))
+	// User.CreateCommunicationNetwork(users, 2, 4, r)
+	// User.CreateDeniableNetwork(users, 1, 2, r)
+
+	users := manager.MakeAliceBobDeniableBurstExampleSimulation(clientContainers, nextfunc)
 
 	println("Starting simulation")
 	Simulator.SimulateTraffic(users, 2*3600, networkName)
