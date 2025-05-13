@@ -15,6 +15,7 @@ import (
 	"deniable-im/im-sim/pkg/image"
 	"deniable-im/im-sim/pkg/network"
 	Behavior "deniable-im/im-sim/pkg/simulation/behavior"
+	"deniable-im/im-sim/pkg/simulation/manager"
 	Simulator "deniable-im/im-sim/pkg/simulation/simulator"
 	User "deniable-im/im-sim/pkg/simulation/simulator/user"
 	Types "deniable-im/im-sim/pkg/simulation/types"
@@ -174,9 +175,12 @@ func main() {
 		panic(err)
 	}
 
+	user_count := 100
+	iter_arr := make([]int, user_count)
+
 	// Setup clients
 	var images []types.Pair[string, string]
-	for i := range [100]int{} {
+	for i := range iter_arr {
 		images = append(images,
 			types.Pair[string, string]{
 				Fst: "denim-client",
@@ -221,16 +225,23 @@ func main() {
 
 	r := rand.New(rand.NewSource(42069))
 
-	user_count := 100
-	users := make([]*User.SimulatedUser, user_count)
-	// f := fuzz.NewWithSeed(6942069).NilChance(0)
-	traits := Behavior.GenerateRealisticSimpleHumanTraits(user_count, nil, nextfunc)
-	for i := 0; i < user_count; i++ {
-		traits[i].ResponseProb += 0.2
-		// traits[i].DeniableBurstSize = 0
-		users[i] = &User.SimulatedUser{Behavior: traits[i], User: &Types.SimUser{ID: int32(i), Nickname: fmt.Sprintf("%v", i)}, Client: clientContainers[i]}
-	}
+	burstMod := 0.1
+	burstSize := 10
+	seed := int64(123456789)
 
+	//Use this options struct if you want custom configurations. Replace nil in users assignment to switch from default generation to custom options
+	options := Types.SimUserOptions{
+		Behaviour:                 Types.BehaviorType(Types.SimpleHuman),
+		MinMaxRegularProbabiity:   &Types.FloatTuple{First: 0.25, Second: 0.45},
+		MinMaxDeniableProbability: &Types.FloatTuple{First: 0.09, Second: 0.11},
+		MinMaxReplyProbability:    &Types.FloatTuple{First: 0.45, Second: 0.65},
+		BurstModifier:             &burstMod,
+		BurstSize:                 &burstSize,
+		Seed:                      &seed,
+	}
+	options.HasNil()
+
+	users := manager.MakeSimUsersFromOptions(user_count, clientContainers, nextfunc, nil)
 	User.CreateCommunicationNetwork(users, 2, 4, r)
 	User.CreateDeniableNetwork(users, 1, 2, r)
 

@@ -8,6 +8,7 @@ import (
 	"fmt"
 )
 
+// Creates default user array of the specified size. Panics if there is not enough containers or the nextfunc is nil.
 func MakeDefaultSimulation(count int, clientContainers []*container.Container, nextfunc func(*Behavior.SimpleHumanTraits) float64) []*User.SimulatedUser {
 	if len(clientContainers) < count {
 		panic(fmt.Sprintf("Insufficient number of clientContainers provided as argument. Expected %v, got %v", count, len(clientContainers)))
@@ -27,6 +28,7 @@ func MakeDefaultSimulation(count int, clientContainers []*container.Container, n
 	return users
 }
 
+// Uses the supplied options struct to generate users. If any critical option is nil, the function will return default users. Panics if there is not enough containers or the nextfunc is nil.
 func MakeSimUsersFromOptions(count int, clientContainers []*container.Container, nextfunc func(*Behavior.SimpleHumanTraits) float64, options *Types.SimUserOptions) []*User.SimulatedUser {
 	if len(clientContainers) < count {
 		panic(fmt.Sprintf("Insufficient number of clientContainers provided as argument. Expected %v, got %v", count, len(clientContainers)))
@@ -62,7 +64,7 @@ func MakeSimUsersFromOptions(count int, clientContainers []*container.Container,
 	return users
 }
 
-// Alice, Bob, Charlie and Dorothy example in different variations. These might be used in the report at some point
+// Alice, Bob, Charlie and Dorothy example only sending regular messages. Panics if there is not enough containers or the nextfunc is nil.
 func MakeAliceBobRegularExampleSimulation(clientContainers []*container.Container, nextfunc func(*Behavior.SimpleHumanTraits) float64) []*User.SimulatedUser {
 	if len(clientContainers) < 4 {
 		panic(fmt.Sprintf("Insufficient number of clientContainers provided as argument. Expected %v, got %v", 4, len(clientContainers)))
@@ -83,6 +85,7 @@ func MakeAliceBobRegularExampleSimulation(clientContainers []*container.Containe
 	return users
 }
 
+// Alice, Bob, Charlie and Dorothy example sending both regular messages and deniable messages with bursting. Panics if there is not enough containers or the nextfunc is nil.
 func MakeAliceBobDeniableBurstExampleSimulation(clientContainers []*container.Container, nextfunc func(*Behavior.SimpleHumanTraits) float64) []*User.SimulatedUser {
 	if len(clientContainers) < 4 {
 		panic(fmt.Sprintf("Insufficient number of clientContainers provided as argument. Expected %v, got %v", 4, len(clientContainers)))
@@ -100,6 +103,7 @@ func MakeAliceBobDeniableBurstExampleSimulation(clientContainers []*container.Co
 	return users
 }
 
+// Alice, Bob, Charlie and Dorothy example sending both regular messages and deniable messages, but without bursting. Panics if there is not enough containers or the nextfunc is nil.
 func MakeAliceBobDeniableNoBurstExampleSimulation(clientContainers []*container.Container, nextfunc func(*Behavior.SimpleHumanTraits) float64) []*User.SimulatedUser {
 	if len(clientContainers) < 4 {
 		panic(fmt.Sprintf("Insufficient number of clientContainers provided as argument. Expected %v, got %v", 4, len(clientContainers)))
