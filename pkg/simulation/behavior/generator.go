@@ -21,7 +21,7 @@ const MAX_MIN_DIFF = 0.2
 // 44: send: 0.184, resp: 0.279
 // 58: send: 0.161, resp: 0.380
 
-func GenerateRealisticSimpleHumanTraits(count int, r *rand.Rand, nfunc func(*SimpleHumanTraits) float64) []*SimpleHumanTraits {
+func GenerateRealisticSimpleHumanTraits(count int, r *rand.Rand, nfunc func(*SimpleHumanTraits) int) []*SimpleHumanTraits {
 	traits := make([]*SimpleHumanTraits, count)
 	goodSendValues := []float64{0.375, 0.584, 0.751, 0.285, 0.182, 0.200, 0.380, 0.357, 0.181, 0.184, 0.161}
 	var goodSendAvg float64
@@ -65,7 +65,7 @@ func GenerateRealisticSimpleHumanTraits(count int, r *rand.Rand, nfunc func(*Sim
 	return traits
 }
 
-func GenerateSimpleHumanTraitsFromOptions(count int, nextfunc func(*SimpleHumanTraits) float64, options Types.SimUserOptions) []*SimpleHumanTraits {
+func GenerateSimpleHumanTraitsFromOptions(count int, nextfunc func(*SimpleHumanTraits) int, options Types.SimUserOptions) []*SimpleHumanTraits {
 	//Todo: Check if any struct field is nil and panic
 	if options.HasNil() {
 		panic("No nils in options struct!!!")

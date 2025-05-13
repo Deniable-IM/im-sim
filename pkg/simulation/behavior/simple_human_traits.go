@@ -2,7 +2,6 @@ package Behavior
 
 import (
 	"fmt"
-	"math"
 	"math/rand"
 	"strings"
 
@@ -17,7 +16,7 @@ type SimpleHumanTraits struct {
 	BurstModifier     float64
 	DeniableBurstSize int32
 	DeniableCount     int32
-	nextMsgFunc       func(*SimpleHumanTraits) float64
+	nextMsgFunc       func(*SimpleHumanTraits) int
 	randomizer        *rand.Rand
 }
 
@@ -31,7 +30,7 @@ func (sh *SimpleHumanTraits) GetBehaviorName() string {
 	return b.String()
 }
 
-func (sh *SimpleHumanTraits) GetNextMessageTime() float64 {
+func (sh *SimpleHumanTraits) GetNextMessageTime() int {
 	if sh == nil {
 		return 0
 	}
@@ -69,14 +68,18 @@ func (sh *SimpleHumanTraits) SendDeniableMsg() bool {
 	return sh.randomizer.Float64() > (1.0 - sh.DeniableProb)
 }
 
-func (sh *SimpleHumanTraits) GetResponseTime(max float64) float64 {
+func (sh *SimpleHumanTraits) GetResponseTime(max int64) int {
 	if sh == nil {
 		return 0
 	}
 
-	time := int32(math.Max(max, 1))
+	time := int32(max)
+	//Clause to avoid randomizer panicking. 1 ms difference is most likely not a problem
+	if time < 1 {
+		time = 1
+	}
 
-	return float64(sh.randomizer.Int31n((time)))
+	return int(sh.randomizer.Int31n((time)))
 }
 
 func (sh *SimpleHumanTraits) IncrementDeniableCount() {
@@ -87,11 +90,11 @@ func (sh *SimpleHumanTraits) IsBursting() bool {
 	return sh.DeniableCount > 0
 }
 
-func NewSimpleHumanTraits(name string, send_prop, response, deniable_prop, burst_mod float64, deniable_burst_size int32, next_func func(*SimpleHumanTraits) float64, r *rand.Rand) *SimpleHumanTraits {
+func NewSimpleHumanTraits(name string, send_prop, response, deniable_prop, burst_mod float64, deniable_burst_size int32, next_func func(*SimpleHumanTraits) int, r *rand.Rand) *SimpleHumanTraits {
 	return &SimpleHumanTraits{Name: name, SendProp: send_prop, ResponseProb: response, DeniableProb: deniable_prop, BurstModifier: burst_mod, DeniableBurstSize: deniable_burst_size, nextMsgFunc: next_func, randomizer: r}
 }
 
-func FuzzedNewSimpleHumanTraits(fuzzer fuzz.Fuzzer, next_func func(*SimpleHumanTraits) float64, r *rand.Rand) *SimpleHumanTraits {
+func FuzzedNewSimpleHumanTraits(fuzzer fuzz.Fuzzer, next_func func(*SimpleHumanTraits) int, r *rand.Rand) *SimpleHumanTraits {
 	var sh SimpleHumanTraits
 	fuzzer.Fuzz(&sh)
 	sh.nextMsgFunc = next_func

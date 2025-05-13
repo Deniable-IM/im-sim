@@ -51,7 +51,7 @@ func (su *SimulatedUser) StartMessaging(stop chan bool, logger chan Types.MsgEve
 			return
 		default:
 			time_to_next_message := su.Behavior.GetNextMessageTime()
-			dur := time.Duration(time.Duration(time_to_next_message) * time.Second)
+			dur := time.Duration(time.Duration(time_to_next_message) * time.Millisecond)
 			su.nextSendTime = time.Now().Add(dur)
 			time.Sleep(dur)
 			msgs := su.MakeMessages()
@@ -138,9 +138,9 @@ func (su *SimulatedUser) OnReceive(msg Types.Msg) {
 		res.MsgContent = fmt.Sprintf("send:%v:Hello %v quote for you %v", res.To, res.To, Messagemaker.GetQuoteByIndexSafe(int(su.Behavior.GetRandomizer().Int31())))
 	}
 
-	remaining := su.nextSendTime.Sub(time.Now()).Seconds()
+	remaining := su.nextSendTime.Sub(time.Now()).Milliseconds()
 	sleep_time := su.Behavior.GetResponseTime(remaining)
-	time.Sleep(time.Duration(sleep_time * float64(time.Second)))
+	time.Sleep(time.Duration(sleep_time * int(time.Millisecond)))
 
 	go su.SendMessage(res)
 }

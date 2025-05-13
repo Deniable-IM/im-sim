@@ -213,14 +213,15 @@ func main() {
 
 	networkName := fmt.Sprintf("dm-%v", networkIMvlan.ID[:12])
 
-	nextfunc := func(sht *Behavior.SimpleHumanTraits) float64 {
-		var next float64 = 10
+	//Setup for creating users
+	nextfunc := func(sht *Behavior.SimpleHumanTraits) int {
+		var next float64 = 10000 //Max time in milliseconds
 		if sht.IsBursting() {
 			next = next * sht.BurstModifier
 			sht.DeniableBurstSize -= 1
 		}
 
-		return float64(sht.GetRandomizer().Int31n(int32(next)))
+		return int(sht.GetRandomizer().Int31n(int32(next)))
 	}
 
 	r := rand.New(rand.NewSource(42069))
