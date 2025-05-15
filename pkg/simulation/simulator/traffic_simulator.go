@@ -20,6 +20,7 @@ func SimulateTraffic(users []*SimulatedUser.SimulatedUser, simTime int64, networ
 	for i, user := range users {
 		users_to_log[i].User = (*user.User)
 		users_to_log[i].Behavior = user.Behavior
+		users_to_log[i].ContainerName = user.Client.Name
 		for _, ip := range (*user).Client.Options.Connections {
 			users_to_log[i].UserIP = *ip.IPv4
 			break

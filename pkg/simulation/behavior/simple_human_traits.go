@@ -90,11 +90,28 @@ func (sh *SimpleHumanTraits) IsBursting() bool {
 	return sh.DeniableCount > 0
 }
 
-func NewSimpleHumanTraits(name string, send_prop, response, deniable_prop, burst_mod float64, deniable_burst_size int32, next_func func(*SimpleHumanTraits) int, r *rand.Rand) *SimpleHumanTraits {
-	return &SimpleHumanTraits{Name: name, SendProp: send_prop, ResponseProb: response, DeniableProb: deniable_prop, BurstModifier: burst_mod, DeniableBurstSize: deniable_burst_size, nextMsgFunc: next_func, randomizer: r}
+func NewSimpleHumanTraits(
+	name string,
+	send_prop, response, deniable_prop, burst_mod float64,
+	deniable_burst_size int32,
+	next_func func(*SimpleHumanTraits) int,
+	r *rand.Rand) *SimpleHumanTraits {
+	return &SimpleHumanTraits{
+		Name:              name,
+		SendProp:          send_prop,
+		ResponseProb:      response,
+		DeniableProb:      deniable_prop,
+		BurstModifier:     burst_mod,
+		DeniableBurstSize: deniable_burst_size,
+		nextMsgFunc:       next_func,
+		randomizer:        r,
+	}
 }
 
-func FuzzedNewSimpleHumanTraits(fuzzer fuzz.Fuzzer, next_func func(*SimpleHumanTraits) int, r *rand.Rand) *SimpleHumanTraits {
+func FuzzedNewSimpleHumanTraits(
+	fuzzer fuzz.Fuzzer,
+	next_func func(*SimpleHumanTraits) int,
+	r *rand.Rand) *SimpleHumanTraits {
 	var sh SimpleHumanTraits
 	fuzzer.Fuzz(&sh)
 	sh.nextMsgFunc = next_func

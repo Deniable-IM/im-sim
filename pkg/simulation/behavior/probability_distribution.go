@@ -60,15 +60,30 @@ func (q *PureProbabilityDistribution) GetResponseTime(max float64) float64 {
 	return math.Min(max, q.probabilityFunction(q))
 }
 
-func NewPureProbabilityDistribution(name string, rate float64, distribution func(*PureProbabilityDistribution) float64, deniable_mod, deniable_prop float64, randomizer *rand.Rand) *PureProbabilityDistribution {
-	return &PureProbabilityDistribution{Name: name, Rate: rate, probabilityFunction: distribution, DeniableModifier: deniable_mod, DeniableProb: deniable_prop, randomizer: randomizer}
+func NewPureProbabilityDistribution(
+	name string,
+	rate float64,
+	distribution func(*PureProbabilityDistribution) float64,
+	deniable_mod,
+	deniable_prop float64,
+	randomizer *rand.Rand) *PureProbabilityDistribution {
+	return &PureProbabilityDistribution{
+		Name:                name,
+		Rate:                rate,
+		probabilityFunction: distribution,
+		DeniableModifier:    deniable_mod,
+		DeniableProb:        deniable_prop,
+		randomizer:          randomizer,
+	}
 }
 
-func NewFuzzedPureProbabilityDistribution(fuzzer *fuzz.Fuzzer, distribution func(*PureProbabilityDistribution) float64, randomizer *rand.Rand) *PureProbabilityDistribution {
+func NewFuzzedPureProbabilityDistribution(
+	fuzzer *fuzz.Fuzzer,
+	distribution func(*PureProbabilityDistribution) float64,
+	randomizer *rand.Rand) *PureProbabilityDistribution {
 	var q PureProbabilityDistribution
 	fuzzer.Fuzz(&q)
 	q.probabilityFunction = distribution
 	q.randomizer = randomizer
-
 	return &q
 }

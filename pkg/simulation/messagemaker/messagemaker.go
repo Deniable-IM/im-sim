@@ -95,6 +95,7 @@ var nonsenseQuotes = []string{
 	"Yes the refrigerator dances when the lights go off and it prefers salsa",
 	"Gravity took a day off and now all the chairs are hovering in defiance",
 	"This sentence contains more whimsy than legally allowed in seven states",
+	"Cold beers in the sun is the best proof that God exists and loves mankind",
 }
 
 func GetQuoteByIndexSafe(index int) string {
