@@ -10,14 +10,13 @@ import (
 
 type SimpleHumanTraits struct {
 	Name              string
-	SendRate          float64
-	ForgetRate        float64
-	Rhythm            float64
-	LastSentMessageAt float64
 	SendProp          float64
 	ResponseProb      float64
 	DeniableProb      float64
-	NextMsgFunc       func(SimpleHumanTraits) float64
+	BurstModifier     float64
+	DeniableBurstSize int32
+	DeniableCount     int32
+	nextMsgFunc       func(*SimpleHumanTraits) int
 	randomizer        *rand.Rand
 }
 
@@ -27,16 +26,16 @@ func (sh *SimpleHumanTraits) GetBehaviorName() string {
 	}
 
 	var b strings.Builder
-	fmt.Fprintf(&b, "Simple Human Traits Behavior with name %v, Forget_rate = %v, Rhythm = %v", sh.Name, sh.ForgetRate, sh.Rhythm)
+	fmt.Fprintf(&b, "Simple Human Traits Behavior with name %v", sh.Name)
 	return b.String()
 }
 
-func (sh *SimpleHumanTraits) GetNextMessageTime() float64 {
+func (sh *SimpleHumanTraits) GetNextMessageTime() int {
 	if sh == nil {
 		return 0
 	}
 
-	next := sh.NextMsgFunc(*sh)
+	next := sh.nextMsgFunc(sh)
 
 	return next
 }
@@ -69,15 +68,55 @@ func (sh *SimpleHumanTraits) SendDeniableMsg() bool {
 	return sh.randomizer.Float64() > (1.0 - sh.DeniableProb)
 }
 
-func NewSimpleHumanTraits(name string, send_rate, forget_rate, rhythm, send_prop, response, deniable_prop float64, next_func func(SimpleHumanTraits) float64, r *rand.Rand) *SimpleHumanTraits {
-	return &SimpleHumanTraits{Name: name, SendRate: send_rate, ForgetRate: forget_rate, Rhythm: rhythm, SendProp: send_prop, ResponseProb: response, DeniableProb: deniable_prop, NextMsgFunc: next_func, randomizer: r}
+func (sh *SimpleHumanTraits) GetResponseTime(max int64) int {
+	if sh == nil {
+		return 0
+	}
+
+	time := int32(max)
+	//Clause to avoid randomizer panicking. 1 ms difference is most likely not a problem
+	if time < 1 {
+		time = 1
+	}
+
+	return int(sh.randomizer.Int31n((time)))
 }
 
-func FuzzedNewSimpleHumanTraits(fuzzer fuzz.Fuzzer, next_func func(SimpleHumanTraits) float64, r *rand.Rand) *SimpleHumanTraits {
+func (sh *SimpleHumanTraits) IncrementDeniableCount() {
+	sh.DeniableCount += sh.DeniableBurstSize
+}
+
+func (sh *SimpleHumanTraits) IsBursting() bool {
+	return sh.DeniableCount > 0
+}
+
+func NewSimpleHumanTraits(
+	name string,
+	send_prop, response, deniable_prop, burst_mod float64,
+	deniable_burst_size int32,
+	next_func func(*SimpleHumanTraits) int,
+	r *rand.Rand) *SimpleHumanTraits {
+	return &SimpleHumanTraits{
+		Name:              name,
+		SendProp:          send_prop,
+		ResponseProb:      response,
+		DeniableProb:      deniable_prop,
+		BurstModifier:     burst_mod,
+		DeniableBurstSize: deniable_burst_size,
+		nextMsgFunc:       next_func,
+		randomizer:        r,
+	}
+}
+
+func FuzzedNewSimpleHumanTraits(
+	fuzzer fuzz.Fuzzer,
+	next_func func(*SimpleHumanTraits) int,
+	r *rand.Rand) *SimpleHumanTraits {
 	var sh SimpleHumanTraits
 	fuzzer.Fuzz(&sh)
-	sh.NextMsgFunc = next_func
+	sh.nextMsgFunc = next_func
 	sh.randomizer = r
+	sh.DeniableBurstSize = sh.DeniableBurstSize % 10
 
 	return &sh
 }

@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"math/rand"
-	"sync"
 	"time"
 
 	dockerTypes "github.com/docker/docker/api/types"
@@ -16,6 +15,7 @@ import (
 	"deniable-im/im-sim/pkg/image"
 	"deniable-im/im-sim/pkg/network"
 	Behavior "deniable-im/im-sim/pkg/simulation/behavior"
+	"deniable-im/im-sim/pkg/simulation/manager"
 	Simulator "deniable-im/im-sim/pkg/simulation/simulator"
 	User "deniable-im/im-sim/pkg/simulation/simulator/user"
 	Types "deniable-im/im-sim/pkg/simulation/types"
@@ -175,9 +175,12 @@ func main() {
 		panic(err)
 	}
 
+	user_count := 10
+	iter_arr := make([]int, user_count)
+
 	// Setup clients
 	var images []types.Pair[string, string]
-	for i := range [100]int{} {
+	for i := range iter_arr {
 		images = append(images,
 			types.Pair[string, string]{
 				Fst: "denim-client",
@@ -210,24 +213,42 @@ func main() {
 
 	networkName := fmt.Sprintf("dm-%v", networkIMvlan.ID[:12])
 
-	var globalLock sync.Mutex
+	//Setup for creating users
+	nextfunc := func(sht *Behavior.SimpleHumanTraits) int {
+		var next float64 = 10000 //Max time in milliseconds
+		if sht.IsBursting() {
+			next = next * sht.BurstModifier
+			sht.DeniableCount -= 1
 
-	nextfunc := func(sht Behavior.SimpleHumanTraits) float64 { return float64(sht.GetRandomizer().Int31n(360)) }
+			return int(sht.GetRandomizer().Int31n((int32(next / 2)) + int32(next/2)))
+		}
 
-	r := rand.New(rand.NewSource(42069))
-	aliceUserType := Types.SimUser{ID: 1, Nickname: "alice", RegularContactList: []string{"2", "3"}}
-	aliceBehavior := Behavior.NewSimpleHumanTraits("SimpleHuman", 0.01, 0.0, 0.0, 0.75, 0.45, 0.0, nextfunc, r)
-	simulatedAlice := User.SimulatedUser{Behavior: aliceBehavior, User: &aliceUserType, Client: clientContainers[0], GlobalLock: &globalLock}
+		return int(sht.GetRandomizer().Int31n(int32(next)))
+	}
 
-	bobUserType := Types.SimUser{ID: 2, Nickname: "bob", RegularContactList: []string{"1", "3"}}
-	bobBehavior := Behavior.NewSimpleHumanTraits("SimpleHuman", 0.01, 0.0, 0.0, 0.75, 0.45, 0.0, nextfunc, r)
-	simulatedBob := User.SimulatedUser{Behavior: bobBehavior, User: &bobUserType, Client: clientContainers[1], GlobalLock: &globalLock}
+	burstMod := 0.1
+	burstSize := 10
+	seed := int64(123456789)
 
-	charlieUserType := Types.SimUser{ID: 3, Nickname: "charlie", RegularContactList: []string{"1", "2"}}
-	charlieBehavior := Behavior.NewSimpleHumanTraits("SimpleHuman", 0.01, 0.0, 0.0, 0.75, 0.45, 0.0, nextfunc, r)
-	simulatedCharlie := User.SimulatedUser{Behavior: charlieBehavior, User: &charlieUserType, Client: clientContainers[2], GlobalLock: &globalLock}
+	//Use this options struct if you want custom configurations. Replace nil in users assignment to switch from default generation to custom options
+	options := Types.SimUserOptions{
+		Behaviour:                 Types.BehaviorType(Types.SimpleHuman),
+		MinMaxRegularProbabiity:   &Types.FloatTuple{First: 0.25, Second: 0.45},
+		MinMaxDeniableProbability: &Types.FloatTuple{First: 0.09, Second: 0.11},
+		MinMaxReplyProbability:    &Types.FloatTuple{First: 0.45, Second: 0.65},
+		BurstModifier:             &burstMod,
+		BurstSize:                 &burstSize,
+		Seed:                      &seed,
+	}
+	options.HasNil()
 
-	users := []*User.SimulatedUser{&simulatedAlice, &simulatedBob, &simulatedCharlie}
+	users := manager.MakeSimUsersFromOptions(user_count, clientContainers, nextfunc, nil)
+	r := rand.New(rand.NewSource(6942069))
+	User.CreateCommunicationNetwork(users, 2, 3, r)
+	User.CreateDeniableNetwork(users, 1, 2, r)
+
+	// users := manager.MakeAliceBobDeniableBurstExampleSimulation(clientContainers, nextfunc)
+
 	println("Starting simulation")
-	Simulator.SimulateTraffic(users, 1800, networkName)
+	Simulator.SimulateTraffic(users, 3600, networkName)
 }

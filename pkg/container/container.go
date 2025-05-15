@@ -329,7 +329,6 @@ func (container *Container) Exec(commands []string, logOutput bool) (*process.Pr
 	var buffer bytes.Buffer
 
 	tee := io.TeeReader(res.Reader, &buffer)
-	// io.Copy(os.Stdout, tee)
 
 	if logOutput {
 		go logger.LogContainerExec(tee, commands, container.Name)

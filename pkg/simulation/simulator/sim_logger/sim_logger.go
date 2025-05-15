@@ -1,6 +1,7 @@
 package simlogger
 
 import (
+	Behavior "deniable-im/im-sim/pkg/simulation/behavior"
 	Types "deniable-im/im-sim/pkg/simulation/types"
 	"encoding/json"
 	"fmt"
@@ -12,6 +13,13 @@ import (
 type SimLogger struct {
 	Dir      string
 	killChan chan bool
+}
+
+type UserInfo struct {
+	User          Types.SimUser
+	Behavior      Behavior.Behavior
+	UserIP        string
+	ContainerName string
 }
 
 func (sl *SimLogger) InitLogging(kill chan bool) (chan Types.MsgEvent, error) {
@@ -42,7 +50,15 @@ func (sl *SimLogger) LogMsgEvent(eventChan chan Types.MsgEvent) {
 		return
 	}
 	defer f.Close()
+	defer f.Write([]byte("]\n"))
 
+	_, e := f.Write([]byte("["))
+	if e != nil {
+		fmt.Println("Error writing msg event to file", e)
+		return
+	}
+
+	first := true
 	for {
 		select {
 		case <-sl.killChan:
@@ -55,18 +71,28 @@ func (sl *SimLogger) LogMsgEvent(eventChan chan Types.MsgEvent) {
 				fmt.Println("Error marshalling JSON", err)
 				return
 			}
+			if !first {
+				_, werr := f.Write([]byte(","))
+				if werr != nil {
+					fmt.Println("Error writing msg event to file", werr)
+					return
+				}
+			} else {
+				first = false
+			}
 
 			_, werr := f.Write(jsonData)
 			if werr != nil {
 				fmt.Println("Error writing msg event to file", werr)
 				return
 			}
+
 		}
 	}
 
 }
 
-func (sl *SimLogger) LogSimUsers(users []Types.SimUser) {
+func (sl *SimLogger) LogSimUsers(users []UserInfo) {
 
 	jsonData, err := json.MarshalIndent(users, "", "  ")
 	if err != nil {
