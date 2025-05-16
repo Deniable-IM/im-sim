@@ -59,7 +59,10 @@ func GenerateRealisticSimpleHumanTraits(count int, r *rand.Rand, nfunc func(*Sim
 		}
 		fmt.Printf("Post increment send: %v, reply: %v \n", send, reply)
 
-		traits[i] = NewSimpleHumanTraits(fmt.Sprintf("%v", i), send, reply, (send * 0.1), 0.1, 10, nfunc, rand_param)
+		deniable_rate := 0.1 // Equivalent to reg:den ratio of 10:1
+		burst_mod := 0.1
+		burst_len := 10
+		traits[i] = NewSimpleHumanTraits(fmt.Sprintf("%v", i), send, reply, deniable_rate, burst_mod, int32(burst_len), nfunc, rand_param)
 	}
 
 	return traits

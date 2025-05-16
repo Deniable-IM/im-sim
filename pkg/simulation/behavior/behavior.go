@@ -1,6 +1,9 @@
 package Behavior
 
-import "math/rand"
+import (
+	Types "deniable-im/im-sim/pkg/simulation/types"
+	"math/rand"
+)
 
 type Behavior interface {
 	GetNextMessageTime() int
@@ -8,8 +11,11 @@ type Behavior interface {
 	GetRandomizer() *rand.Rand
 	SendRegularMsg() bool
 	SendDeniableMsg() bool
-	WillRespond() bool
+	WillRespond(Types.Msg) bool
 	IncrementDeniableCount()
-	GetResponseTime(int64) int
+	GetResponseTime() int
 	IsBursting() bool
+	MakeMessages() []Types.Msg
+	MakeReply(Types.Msg) Types.Msg
+	ParseIncoming(string) (*Types.Msg, error)
 }
