@@ -33,9 +33,8 @@ func (su *SimulatedUser) StartMessaging(stop chan bool, logger chan Types.MsgEve
 
 	res, err := su.Client.Exec(args, true)
 	if err != nil {
-		panic(err)
+		return
 	}
-
 	su.Process = res
 	defer su.Process.Close()
 
@@ -45,6 +44,7 @@ func (su *SimulatedUser) StartMessaging(stop chan bool, logger chan Types.MsgEve
 	for {
 		select {
 		case <-su.stopChan:
+			su.Process.Cmd([]byte("read\n"))
 			return
 		default:
 			time_to_next_message := su.Behavior.GetNextMessageTime()
@@ -64,11 +64,7 @@ func (su *SimulatedUser) SendMessage(msg Types.Msg) {
 		return
 	}
 
-	err := su.Process.Cmd([]byte(fmt.Sprintf("%v\n", msg.MsgContent)))
-	if err != nil {
-		panic(err)
-	}
-
+	su.Process.Cmd([]byte(fmt.Sprintf("%v\n", msg.MsgContent)))
 	su.logger <- Types.MsgEvent{Msg: msg, EventType: "Send"}
 }
 
@@ -86,29 +82,36 @@ func (su *SimulatedUser) OnReceive(msg Types.Msg) {
 	sleep_time := su.Behavior.GetResponseTime()
 	time.Sleep(time.Duration(sleep_time * int(time.Millisecond)))
 
-	su.SendMessage(res)
+	go su.SendMessage(res)
 }
 
 func (su *SimulatedUser) MessageListener() {
 	for {
 		select {
 		case <-su.stopChan:
-			return
+			break
 		default:
 			time.Sleep(time.Duration(readTimeout * float64(time.Second)))
+			su.Process.Cmd([]byte("read\n"))
+			for su.Process.Buffer.Len() != 0 {
+				line, err := su.Process.Buffer.ReadString(byte('\n'))
+				if len(line) == 0 {
+					fmt.Println("Encountered error: %v \n", err)
+					break
+				}
 
-			err := su.Process.Cmd([]byte("read\n"))
-			if err != nil {
-				panic(err)
-			}
+				if err != nil {
+					break
+				}
 
-			lines := su.Process.Read(byte('\n'))
-			for _, line := range lines {
+				if len(line) == 1 {
+					continue
+				}
+
 				msg, err := su.Behavior.ParseIncoming(line)
 				if err != nil {
 					continue
 				}
-
 				msg.To = fmt.Sprintf("%v", su.User.ID)
 
 				su.logger <- Types.MsgEvent{
