@@ -38,7 +38,7 @@ func (su *SimulatedUser) StartMessaging(stop chan bool, logger chan Types.MsgEve
 	su.Process = res
 	defer su.Process.Close()
 
-	time.Sleep(200 * time.Millisecond)
+	time.Sleep(2000 * time.Millisecond)
 
 	go su.MessageListener()
 	for {

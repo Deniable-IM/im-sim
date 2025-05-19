@@ -215,7 +215,7 @@ func main() {
 
 	//Setup for creating users
 	nextfunc := func(sht *Behavior.SimpleHumanTraits) int {
-		var next float64 = 15000 //Max time in milliseconds
+		var next float64 = 1500 //Max time in milliseconds
 		if sht.IsBursting() {
 			next = next * sht.BurstModifier
 			sht.DeniableCount -= 1
@@ -234,7 +234,7 @@ func main() {
 	options := Types.SimUserOptions{
 		Behaviour:                 Types.BehaviorType(Types.SimpleHuman),
 		MinMaxRegularProbabiity:   &Types.FloatTuple{First: 0.25, Second: 0.45},
-		MinMaxDeniableProbability: &Types.FloatTuple{First: 0.09, Second: 0.11},
+		MinMaxDeniableProbability: &Types.FloatTuple{First: 0.0, Second: 0.0},
 		MinMaxReplyProbability:    &Types.FloatTuple{First: 0.45, Second: 0.65},
 		BurstModifier:             &burstMod,
 		BurstSize:                 &burstSize,
@@ -244,11 +244,11 @@ func main() {
 
 	users := manager.MakeSimUsersFromOptions(user_count, clientContainers, nextfunc, nil)
 	r := rand.New(rand.NewSource(6969420))
-	User.CreateCommunicationNetwork(users, 3, 4, r)
+	User.CreateCommunicationNetwork(users, 5, 6, r)
 	User.CreateDeniableNetwork(users, 1, 2, r)
 
 	// users := manager.MakeAliceBobDeniableBurstExampleSimulation(clientContainers, nextfunc)
 
 	println("Starting simulation")
-	Simulator.SimulateTraffic(users, 3600, networkName)
+	Simulator.SimulateTraffic(users, 600, networkName)
 }

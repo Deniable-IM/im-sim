@@ -45,7 +45,7 @@ type SimUserOptions struct {
 }
 
 func (options *SimUserOptions) HasNil() bool {
-	return (options.MinMaxRegularProbabiity != nil &&
+	return !(options.MinMaxRegularProbabiity != nil &&
 		options.MinMaxDeniableProbability != nil &&
 		options.MinMaxReplyProbability != nil &&
 		options.BurstModifier != nil &&

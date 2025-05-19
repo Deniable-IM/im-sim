@@ -44,6 +44,7 @@ func (sh *SimpleHumanTraits) GetNextMessageTime() int {
 	next := sh.nextMsgFunc(sh)
 
 	if sh.IsBursting() {
+		sh.nextSendTime = time.Now().Add(time.Duration(next * int(time.Millisecond)))
 		return next
 	}
 
@@ -56,6 +57,7 @@ func (sh *SimpleHumanTraits) GetNextMessageTime() int {
 		next += sh.nextMsgFunc(sh)
 	}
 
+	sh.nextSendTime = time.Now().Add(time.Duration(next * int(time.Millisecond)))
 	return next
 }
 

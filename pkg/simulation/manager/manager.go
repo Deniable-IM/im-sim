@@ -54,6 +54,7 @@ func MakeSimUsersFromOptions(
 	}
 
 	if options == nil || options.HasNil() {
+		println("Encountered nil, uses default")
 		return MakeDefaultSimulation(count, clientContainers, nextfunc)
 	}
 
