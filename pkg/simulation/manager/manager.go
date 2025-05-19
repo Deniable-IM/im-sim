@@ -58,7 +58,7 @@ func MakeSimUsersFromOptions(
 	}
 
 	behaviour := make([]Behavior.Behavior, count)
-	users := make([]*Types.SimUser, count)
+	var users []*Types.SimUser
 
 	switch options.Behaviour {
 	case Types.BehaviorType(Types.SimpleHuman):
