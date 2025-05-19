@@ -116,7 +116,7 @@ func (su *SimulatedUser) MessageListener() {
 					EventType: "Receive",
 				}
 
-				go su.OnReceive(*msg)
+				su.OnReceive(*msg)
 			}
 		}
 	}
