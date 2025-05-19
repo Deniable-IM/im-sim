@@ -19,3 +19,9 @@ reset:
 	sudo docker network rm IMvlan
 	sudo docker network rm backend
 	
+
+autoreset:
+	make stop
+	echo y | docker container prune
+	docker network rm IMvlan
+	docker network rm backend

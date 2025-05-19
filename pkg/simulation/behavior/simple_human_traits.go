@@ -96,7 +96,7 @@ func (sh *SimpleHumanTraits) GetResponseTime() int {
 		return 0
 	}
 
-	delta := time.Now().Sub(sh.nextSendTime)
+	delta := sh.nextSendTime.Sub(time.Now()).Milliseconds()
 
 	time := int32(delta)
 	//Clause to avoid randomizer panicking. 1 ms difference is most likely not a problem
