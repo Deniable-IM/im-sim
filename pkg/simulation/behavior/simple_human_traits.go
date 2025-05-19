@@ -127,6 +127,11 @@ func (sh *SimpleHumanTraits) MakeReply(msg Types.Msg) Types.Msg {
 		MsgContent: Messagemaker.GetQuoteByIndexSafe(sh.randomizer.Int()),
 	}
 
+	if response.IsDeniable {
+		sh.IncrementDeniableCount()
+	} else {
+		sh.DeniableCount -= 1
+	}
 	return Messagemaker.MakeDenimProtocolMessage(response)
 }
 
