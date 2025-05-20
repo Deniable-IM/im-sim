@@ -234,8 +234,8 @@ func main() {
 	options := Types.SimUserOptions{
 		Behaviour:                 Types.BehaviorType(Types.SimpleHuman),
 		MinMaxRegularProbabiity:   &Types.FloatTuple{First: 0.25, Second: 0.45},
-		MinMaxDeniableProbability: &Types.FloatTuple{First: 0.0, Second: 0.0},
-		MinMaxReplyProbability:    &Types.FloatTuple{First: 0.45, Second: 0.65},
+		MinMaxDeniableProbability: &Types.FloatTuple{First: 0.05, Second: 0.05},
+		MinMaxReplyProbability:    &Types.FloatTuple{First: 0.5, Second: 0.75},
 		BurstModifier:             &burstMod,
 		BurstSize:                 &burstSize,
 		Seed:                      &seed,

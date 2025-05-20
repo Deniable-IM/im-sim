@@ -61,7 +61,7 @@ func GenerateRealisticSimpleHumanTraits(count int, r *rand.Rand, nfunc func(*Sim
 
 		deniable_rate := 0.1 // Equivalent to reg:den ratio of 10:1
 		burst_mod := 0.1
-		burst_len := 10
+		burst_len := 5
 		traits[i] = NewSimpleHumanTraits(fmt.Sprintf("%v", i), send, reply, deniable_rate, burst_mod, int32(burst_len), nfunc, rand_param)
 	}
 
