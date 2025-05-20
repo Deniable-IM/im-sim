@@ -7,6 +7,7 @@ import (
 	Types "deniable-im/im-sim/pkg/simulation/types"
 	"fmt"
 	"math/rand"
+	"sync"
 	"time"
 )
 
@@ -22,6 +23,8 @@ type SimulatedUser struct {
 }
 
 func (su *SimulatedUser) StartMessaging(stop chan bool, logger chan Types.MsgEvent) {
+	var wg sync.WaitGroup
+
 	if su == nil {
 		return
 	}
@@ -33,18 +36,24 @@ func (su *SimulatedUser) StartMessaging(stop chan bool, logger chan Types.MsgEve
 
 	res, err := su.Client.Exec(args, true)
 	if err != nil {
-		return
+		panic(err)
 	}
+
 	su.Process = res
 	defer su.Process.Close()
 
 	time.Sleep(2000 * time.Millisecond)
 
-	go su.MessageListener()
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		su.MessageListener()
+	}()
+
 	for {
 		select {
 		case <-su.stopChan:
-			su.Process.Cmd([]byte("read\n"))
+			wg.Wait()
 			return
 		default:
 			time_to_next_message := su.Behavior.GetNextMessageTime()
@@ -52,10 +61,9 @@ func (su *SimulatedUser) StartMessaging(stop chan bool, logger chan Types.MsgEve
 			time.Sleep(dur)
 			msgs := su.Behavior.MakeMessages()
 			for _, msg := range msgs {
-				go su.SendMessage(msg)
+				su.SendMessage(msg)
 			}
 		}
-
 	}
 }
 
@@ -64,7 +72,11 @@ func (su *SimulatedUser) SendMessage(msg Types.Msg) {
 		return
 	}
 
-	su.Process.Cmd([]byte(fmt.Sprintf("%v\n", msg.MsgContent)))
+	err := su.Process.Cmd([]byte(fmt.Sprintf("%v\n", msg.MsgContent)))
+	if err != nil {
+		panic(err)
+	}
+
 	su.logger <- Types.MsgEvent{Msg: msg, EventType: "Send"}
 }
 
@@ -82,36 +94,29 @@ func (su *SimulatedUser) OnReceive(msg Types.Msg) {
 	sleep_time := su.Behavior.GetResponseTime()
 	time.Sleep(time.Duration(sleep_time * int(time.Millisecond)))
 
-	go su.SendMessage(res)
+	su.SendMessage(res)
 }
 
 func (su *SimulatedUser) MessageListener() {
 	for {
 		select {
 		case <-su.stopChan:
-			break
+			return
 		default:
 			time.Sleep(time.Duration(readTimeout * float64(time.Second)))
-			su.Process.Cmd([]byte("read\n"))
-			for su.Process.Buffer.Len() != 0 {
-				line, err := su.Process.Buffer.ReadString(byte('\n'))
-				if len(line) == 0 {
-					fmt.Println("Encountered error: %v \n", err)
-					break
-				}
 
-				if err != nil {
-					break
-				}
+			err := su.Process.Cmd([]byte("read\n"))
+			if err != nil {
+				panic(err)
+			}
 
-				if len(line) == 1 {
-					continue
-				}
-
+			lines := su.Process.Read(byte('\n'))
+			for _, line := range lines {
 				msg, err := su.Behavior.ParseIncoming(line)
 				if err != nil {
 					continue
 				}
+
 				msg.To = fmt.Sprintf("%v", su.User.ID)
 
 				su.logger <- Types.MsgEvent{
@@ -119,7 +124,7 @@ func (su *SimulatedUser) MessageListener() {
 					EventType: "Receive",
 				}
 
-				go su.OnReceive(*msg)
+				su.OnReceive(*msg)
 			}
 		}
 	}
