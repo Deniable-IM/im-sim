@@ -7,6 +7,7 @@ import (
 	Types "deniable-im/im-sim/pkg/simulation/types"
 	"fmt"
 	"math/rand"
+	"sync"
 	"time"
 )
 
@@ -22,6 +23,8 @@ type SimulatedUser struct {
 }
 
 func (su *SimulatedUser) StartMessaging(stop chan bool, logger chan Types.MsgEvent) {
+	var wg sync.WaitGroup
+
 	if su == nil {
 		return
 	}
@@ -41,10 +44,16 @@ func (su *SimulatedUser) StartMessaging(stop chan bool, logger chan Types.MsgEve
 
 	time.Sleep(2000 * time.Millisecond)
 
-	go su.MessageListener()
+	go func() {
+		wg.Add(1)
+		defer wg.Done()
+		su.MessageListener()
+	}()
+
 	for {
 		select {
 		case <-su.stopChan:
+			wg.Wait()
 			return
 		default:
 			time_to_next_message := su.Behavior.GetNextMessageTime()
@@ -52,10 +61,9 @@ func (su *SimulatedUser) StartMessaging(stop chan bool, logger chan Types.MsgEve
 			time.Sleep(dur)
 			msgs := su.Behavior.MakeMessages()
 			for _, msg := range msgs {
-				go su.SendMessage(msg)
+				su.SendMessage(msg)
 			}
 		}
-
 	}
 }
 
@@ -116,7 +124,7 @@ func (su *SimulatedUser) MessageListener() {
 					EventType: "Receive",
 				}
 
-				go su.OnReceive(*msg)
+				su.OnReceive(*msg)
 			}
 		}
 	}
