@@ -215,7 +215,7 @@ func main() {
 
 	//Setup for creating users
 	nextfunc := func(sht *Behavior.SimpleHumanTraits) int {
-		var next float64 = 1500 //Max time in milliseconds
+		var next float64 = 10000 //Max time in milliseconds
 		if sht.IsBursting() {
 			next = next * sht.BurstModifier
 			sht.DeniableCount -= 1
@@ -250,5 +250,5 @@ func main() {
 	// users := manager.MakeAliceBobDeniableBurstExampleSimulation(clientContainers, nextfunc)
 
 	println("Starting simulation")
-	Simulator.SimulateTraffic(users, 600, networkName)
+	Simulator.SimulateTraffic(users, 3600, networkName)
 }

@@ -54,6 +54,7 @@ func (su *SimulatedUser) StartMessaging(stop chan bool, logger chan Types.MsgEve
 		select {
 		case <-su.stopChan:
 			wg.Wait()
+			su.Process.Cmd([]byte("quit\n"))
 			return
 		default:
 			time_to_next_message := su.Behavior.GetNextMessageTime()
@@ -197,6 +198,7 @@ func CreateCommunicationNetwork(users []*SimulatedUser, min_contact_count, max_c
 	return users
 }
 
+// Takes an array of users and return a random network of deniable contacts. These contacts are not regular contacts. Panics if min_contact_count is equal to or greater than max_contact_count.
 func CreateDeniableNetwork(users []*SimulatedUser, min_contact_count, max_contact_count int, r *rand.Rand) []*SimulatedUser {
 	max_index := len(users)
 	if max_contact_count < min_contact_count {
