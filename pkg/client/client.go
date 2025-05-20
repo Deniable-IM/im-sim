@@ -12,7 +12,7 @@ type Client struct {
 	Cli *client.Client
 }
 
-// Use local or remote host ("tcp://remote-host:2375")
+// Use local (nil) or remote host ("tcp://remote-host:2375")
 func NewClient(host *string) (*Client, error) {
 	ctx := context.Background()
 
