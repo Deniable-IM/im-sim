@@ -44,8 +44,8 @@ func (su *SimulatedUser) StartMessaging(stop chan bool, logger chan Types.MsgEve
 
 	time.Sleep(2000 * time.Millisecond)
 
+	wg.Add(1)
 	go func() {
-		wg.Add(1)
 		defer wg.Done()
 		su.MessageListener()
 	}()
