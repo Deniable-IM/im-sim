@@ -23,14 +23,16 @@ func MakeDefaultSimulation(
 	users := make([]*User.SimulatedUser, count)
 	traits := Behavior.GenerateRealisticSimpleHumanTraits(count, nil, nextfunc)
 	for i := 0; i < count; i++ {
+		user := &Types.SimUser{
+			ID:       int32(i),
+			Nickname: fmt.Sprintf("%v", i),
+		}
 		traits[i].ResponseProb += 0.2
+		traits[i].User = user
 		users[i] = &User.SimulatedUser{
 			Behavior: traits[i],
-			User: &Types.SimUser{
-				ID:       int32(i),
-				Nickname: fmt.Sprintf("%v", i),
-			},
-			Client: clientContainers[i],
+			User:     user,
+			Client:   clientContainers[i],
 		}
 	}
 
@@ -52,15 +54,23 @@ func MakeSimUsersFromOptions(
 	}
 
 	if options == nil || options.HasNil() {
+		println("Encountered nil, uses default")
 		return MakeDefaultSimulation(count, clientContainers, nextfunc)
 	}
 
-	var behaviour []Behavior.Behavior
+	behaviour := make([]Behavior.Behavior, count)
+	var users []*Types.SimUser
 
 	switch options.Behaviour {
 	case Types.BehaviorType(Types.SimpleHuman):
 		result := Behavior.GenerateSimpleHumanTraitsFromOptions(count, nextfunc, *options)
 		for i := range result {
+			user := &Types.SimUser{
+				ID:       int32(i),
+				Nickname: fmt.Sprintf("%v", i),
+			}
+			users = append(users, user)
+			result[i].User = user
 			behaviour[i] = result[i]
 		}
 
@@ -68,20 +78,17 @@ func MakeSimUsersFromOptions(
 		panic("Option not set")
 	}
 
-	users := make([]*User.SimulatedUser, count)
+	sim_users := make([]*User.SimulatedUser, count)
 
 	for i := 0; i < count; i++ {
-		users[i] = &User.SimulatedUser{
+		sim_users[i] = &User.SimulatedUser{
 			Behavior: behaviour[i],
-			User: &Types.SimUser{
-				ID:       int32(i),
-				Nickname: fmt.Sprintf("%v", i),
-			},
-			Client: clientContainers[i],
+			User:     users[i],
+			Client:   clientContainers[i],
 		}
 	}
 
-	return users
+	return sim_users
 }
 
 // Alice, Bob, Charlie and Dorothy example only sending regular messages. Panics if there is not enough containers or the nextfunc is nil.
@@ -95,47 +102,39 @@ func MakeAliceBobRegularExampleSimulation(
 	traits := Behavior.GenerateRealisticSimpleHumanTraits(4, nil, nextfunc)
 	for i := range traits {
 		traits[i].DeniableBurstSize = 0
+		traits[i].User = &Types.SimUser{
+			ID:       int32(i),
+			Nickname: fmt.Sprintf("%v", i),
+		}
 	}
 
 	simulatedAlice := User.SimulatedUser{
 		Behavior: traits[0],
-		User: &Types.SimUser{
-			ID:                 0,
-			Nickname:           "0",
-			RegularContactList: []string{"0"},
-		},
-		Client: clientContainers[0],
+		User:     traits[0].User,
+		Client:   clientContainers[0],
 	}
+	simulatedAlice.User.RegularContactList = []string{"1"}
 
 	simulatedBob := User.SimulatedUser{
 		Behavior: traits[1],
-		User: &Types.SimUser{
-			ID:                 2,
-			Nickname:           "bob",
-			RegularContactList: []string{"1"},
-		},
-		Client: clientContainers[1],
+		User:     traits[1].User,
+		Client:   clientContainers[1],
 	}
+	simulatedBob.User.RegularContactList = []string{"0"}
 
 	simulatedCharlie := User.SimulatedUser{
 		Behavior: traits[2],
-		User: &Types.SimUser{
-			ID:                 3,
-			Nickname:           "charlie",
-			RegularContactList: []string{"4"},
-		},
-		Client: clientContainers[2],
+		User:     traits[2].User,
+		Client:   clientContainers[2],
 	}
+	simulatedCharlie.User.RegularContactList = []string{"3"}
 
 	simulatedDorothy := User.SimulatedUser{
 		Behavior: traits[3],
-		User: &Types.SimUser{
-			ID:                 4,
-			Nickname:           "dorothy",
-			RegularContactList: []string{"3"},
-		},
-		Client: clientContainers[3],
+		User:     traits[3].User,
+		Client:   clientContainers[3],
 	}
+	simulatedDorothy.User.RegularContactList = []string{"2"}
 
 	users := []*User.SimulatedUser{
 		&simulatedAlice,
@@ -156,48 +155,42 @@ func MakeAliceBobDeniableBurstExampleSimulation(
 	}
 
 	traits := Behavior.GenerateRealisticSimpleHumanTraits(4, nil, nextfunc)
+	for i := range traits {
+		traits[i].User = &Types.SimUser{
+			ID:       int32(i),
+			Nickname: fmt.Sprintf("%v", i),
+		}
+	}
 
 	simulatedAlice := User.SimulatedUser{
 		Behavior: traits[0],
-		User: &Types.SimUser{
-			ID:                  1,
-			Nickname:            "alice",
-			RegularContactList:  []string{"2"},
-			DeniableContactList: []string{"4"},
-		},
-		Client: clientContainers[0],
+		User:     traits[0].User,
+		Client:   clientContainers[0],
 	}
+	simulatedAlice.User.RegularContactList = []string{"1"}
+	simulatedAlice.User.DeniableContactList = []string{"3"}
 
 	simulatedBob := User.SimulatedUser{
 		Behavior: traits[1],
-		User: &Types.SimUser{
-			ID:                 2,
-			Nickname:           "bob",
-			RegularContactList: []string{"1"},
-		},
-		Client: clientContainers[1],
+		User:     traits[1].User,
+		Client:   clientContainers[1],
 	}
+	simulatedBob.User.RegularContactList = []string{"0"}
 
 	simulatedCharlie := User.SimulatedUser{
 		Behavior: traits[2],
-		User: &Types.SimUser{
-			ID:                 3,
-			Nickname:           "charlie",
-			RegularContactList: []string{"4"},
-		},
-		Client: clientContainers[2],
+		User:     traits[2].User,
+		Client:   clientContainers[2],
 	}
+	simulatedCharlie.User.RegularContactList = []string{"3"}
 
 	simulatedDorothy := User.SimulatedUser{
 		Behavior: traits[3],
-		User: &Types.SimUser{
-			ID:                  4,
-			Nickname:            "dorothy",
-			RegularContactList:  []string{"3"},
-			DeniableContactList: []string{"1"},
-		},
-		Client: clientContainers[3],
+		User:     traits[3].User,
+		Client:   clientContainers[3],
 	}
+	simulatedDorothy.User.RegularContactList = []string{"2"}
+	simulatedDorothy.User.DeniableContactList = []string{"0"}
 
 	users := []*User.SimulatedUser{
 		&simulatedAlice,
@@ -220,49 +213,41 @@ func MakeAliceBobDeniableNoBurstExampleSimulation(
 	traits := Behavior.GenerateRealisticSimpleHumanTraits(4, nil, nextfunc)
 
 	for i := range traits {
-		traits[i].DeniableBurstSize = 0
+		traits[i].User = &Types.SimUser{
+			ID:       int32(i),
+			Nickname: fmt.Sprintf("%v", i),
+		}
 	}
 
 	simulatedAlice := User.SimulatedUser{
 		Behavior: traits[0],
-		User: &Types.SimUser{
-			ID:                  1,
-			Nickname:            "alice",
-			RegularContactList:  []string{"2"},
-			DeniableContactList: []string{"4"},
-		},
-		Client: clientContainers[0],
+		User:     traits[0].User,
+		Client:   clientContainers[0],
 	}
+	simulatedAlice.User.RegularContactList = []string{"1"}
+	simulatedAlice.User.DeniableContactList = []string{"3"}
 
 	simulatedBob := User.SimulatedUser{
 		Behavior: traits[1],
-		User: &Types.SimUser{
-			ID:                 2,
-			Nickname:           "bob",
-			RegularContactList: []string{"1"},
-		},
-		Client: clientContainers[1],
+		User:     traits[1].User,
+		Client:   clientContainers[1],
 	}
+	simulatedBob.User.RegularContactList = []string{"0"}
 
 	simulatedCharlie := User.SimulatedUser{
 		Behavior: traits[2],
-		User: &Types.SimUser{
-			ID:                 3,
-			Nickname:           "charlie",
-			RegularContactList: []string{"4"},
-		},
-		Client: clientContainers[2],
+		User:     traits[2].User,
+		Client:   clientContainers[2],
 	}
+	simulatedCharlie.User.RegularContactList = []string{"3"}
 
 	simulatedDorothy := User.SimulatedUser{
 		Behavior: traits[3],
-		User: &Types.SimUser{
-			ID:                  4,
-			Nickname:            "dorothy",
-			RegularContactList:  []string{"3"},
-			DeniableContactList: []string{"1"},
-		},
-		Client: clientContainers[3]}
+		User:     traits[3].User,
+		Client:   clientContainers[3],
+	}
+	simulatedDorothy.User.RegularContactList = []string{"2"}
+	simulatedDorothy.User.DeniableContactList = []string{"0"}
 
 	users := []*User.SimulatedUser{
 		&simulatedAlice,

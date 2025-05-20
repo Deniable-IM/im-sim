@@ -4,27 +4,27 @@ import (
 	Container "deniable-im/im-sim/pkg/container"
 	Process "deniable-im/im-sim/pkg/process"
 	Behavior "deniable-im/im-sim/pkg/simulation/behavior"
-	Messagemaker "deniable-im/im-sim/pkg/simulation/messagemaker"
 	Types "deniable-im/im-sim/pkg/simulation/types"
 	"fmt"
 	"math/rand"
-	"strings"
+	"sync"
 	"time"
 )
 
 const readTimeout = 0.2
 
 type SimulatedUser struct {
-	Behavior     Behavior.Behavior
-	Client       *Container.Container
-	User         *Types.SimUser
-	stopChan     chan bool
-	logger       chan Types.MsgEvent
-	Process      *Process.Process
-	nextSendTime time.Time
+	Behavior Behavior.Behavior
+	Client   *Container.Container
+	User     *Types.SimUser
+	stopChan chan bool
+	logger   chan Types.MsgEvent
+	Process  *Process.Process
 }
 
 func (su *SimulatedUser) StartMessaging(stop chan bool, logger chan Types.MsgEvent) {
+	var wg sync.WaitGroup
+
 	if su == nil {
 		return
 	}
@@ -36,75 +36,36 @@ func (su *SimulatedUser) StartMessaging(stop chan bool, logger chan Types.MsgEve
 
 	res, err := su.Client.Exec(args, true)
 	if err != nil {
-		return
+		panic(err)
 	}
+
 	su.Process = res
 	defer su.Process.Close()
 
-	time.Sleep(200 * time.Millisecond)
+	time.Sleep(2000 * time.Millisecond)
 
-	go su.MessageListener()
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		su.MessageListener()
+	}()
+
 	for {
 		select {
 		case <-su.stopChan:
-			su.Process.Cmd([]byte("read\n"))
+			wg.Wait()
+			su.Process.Cmd([]byte("quit\n"))
 			return
 		default:
 			time_to_next_message := su.Behavior.GetNextMessageTime()
 			dur := time.Duration(time_to_next_message * int(time.Millisecond))
-			su.nextSendTime = time.Now().Add(dur)
 			time.Sleep(dur)
-			msgs := su.MakeMessages()
+			msgs := su.Behavior.MakeMessages()
 			for _, msg := range msgs {
-				go su.SendMessage(msg)
+				su.SendMessage(msg)
 			}
 		}
-
 	}
-}
-
-func (su *SimulatedUser) makeRegularMessage(target string) Types.Msg {
-	if su == nil {
-		return Types.Msg{}
-	}
-
-	var b strings.Builder
-	fmt.Fprintf(&b, "send:%v:Hello %v %v", target, target, Messagemaker.GetQuoteByIndexSafe(int(su.Behavior.GetRandomizer().Int31())))
-
-	msg := Types.Msg{To: target, From: fmt.Sprintf("%v", su.User.ID), MsgContent: b.String(), IsDeniable: false}
-	return msg
-}
-
-func (su *SimulatedUser) makeDeniableMessage(target string) Types.Msg {
-	if su == nil {
-		return Types.Msg{}
-	}
-	var b strings.Builder
-	fmt.Fprintf(&b, "denim:%v:Hello %v deniable quote just for you %v", target, target, Messagemaker.GetQuoteByIndexSafe(int(su.Behavior.GetRandomizer().Int31())))
-
-	msg := Types.Msg{To: target, From: fmt.Sprintf("%v", su.User.ID), MsgContent: b.String(), IsDeniable: true}
-	su.Behavior.IncrementDeniableCount()
-	return msg
-}
-
-func (su *SimulatedUser) MakeMessages() []Types.Msg {
-	var msgs []Types.Msg
-
-	//Deniable messages are made first to allow them to piggyback on the regular messages
-	if su.Behavior.SendDeniableMsg() && len(su.User.DeniableContactList) != 0 {
-		den_target := su.User.DeniableContactList[su.Behavior.GetRandomizer().Intn(len(su.User.DeniableContactList))]
-		den_msg := su.makeDeniableMessage(den_target)
-		msgs = append(msgs, den_msg)
-	}
-
-	//Mayhaps make more than one regular message per call? Idk anymore, all of this is horrible to simulate
-	if (su.Behavior.SendRegularMsg() || su.Behavior.IsBursting()) && len(su.User.RegularContactList) != 0 {
-		reg_target := su.User.RegularContactList[su.Behavior.GetRandomizer().Intn(len(su.User.RegularContactList))]
-		reg_msg := su.makeRegularMessage(reg_target)
-		msgs = append(msgs, reg_msg)
-	}
-
-	return msgs
 }
 
 func (su *SimulatedUser) SendMessage(msg Types.Msg) {
@@ -112,7 +73,11 @@ func (su *SimulatedUser) SendMessage(msg Types.Msg) {
 		return
 	}
 
-	su.Process.Cmd([]byte(fmt.Sprintf("%v\n", msg.MsgContent)))
+	err := su.Process.Cmd([]byte(fmt.Sprintf("%v\n", msg.MsgContent)))
+	if err != nil {
+		panic(err)
+	}
+
 	su.logger <- Types.MsgEvent{Msg: msg, EventType: "Send"}
 }
 
@@ -121,95 +86,46 @@ func (su *SimulatedUser) OnReceive(msg Types.Msg) {
 		return
 	}
 
-	su.logger <- Types.MsgEvent{EventType: "Receive", Msg: msg}
-
 	//Determine if Alice responds to the message
-	if !su.Behavior.WillRespond() {
+	if !su.Behavior.WillRespond(msg) {
 		return
 	}
 
-	var res Types.Msg
-	//TODO: Determine whether the message is regular or the entirety of a deniable message has been received
-	if msg.IsDeniable {
-		res = su.makeDeniableMessage(msg.From)
-		res.MsgContent = fmt.Sprintf("denim:%v:Hello %v deniable quote for you %v", res.To, res.To, Messagemaker.GetQuoteByIndexSafe(int(su.Behavior.GetRandomizer().Int31())))
-	} else {
-		res = su.makeRegularMessage(msg.From)
-		res.MsgContent = fmt.Sprintf("send:%v:Hello %v quote for you %v", res.To, res.To, Messagemaker.GetQuoteByIndexSafe(int(su.Behavior.GetRandomizer().Int31())))
-	}
-
-	remaining := su.nextSendTime.Sub(time.Now()).Milliseconds()
-	sleep_time := su.Behavior.GetResponseTime(remaining)
+	res := su.Behavior.MakeReply(msg)
+	sleep_time := su.Behavior.GetResponseTime()
 	time.Sleep(time.Duration(sleep_time * int(time.Millisecond)))
 
-	go su.SendMessage(res)
+	su.SendMessage(res)
 }
 
 func (su *SimulatedUser) MessageListener() {
 	for {
 		select {
 		case <-su.stopChan:
-			break
+			return
 		default:
 			time.Sleep(time.Duration(readTimeout * float64(time.Second)))
-			su.Process.Cmd([]byte("read\n"))
-			for su.Process.Buffer.Len() != 0 {
-				line, err := su.Process.Buffer.ReadString(byte('\n'))
-				if len(line) == 0 {
-					fmt.Println("Encountered error: %v \n", err)
-					break
-				}
 
+			err := su.Process.Cmd([]byte("read\n"))
+			if err != nil {
+				panic(err)
+			}
+
+			lines := su.Process.Read(byte('\n'))
+			for _, line := range lines {
+				msg, err := su.Behavior.ParseIncoming(line)
 				if err != nil {
-					break
-				}
-
-				if len(line) == 1 {
 					continue
 				}
 
-				splits := strings.Split(line, ":")
-				if splits[0] == "" || splits[0] == "\n" {
-					continue
+				msg.To = fmt.Sprintf("%v", su.User.ID)
+
+				su.logger <- Types.MsgEvent{
+					Msg:       *msg,
+					EventType: "Receive",
 				}
 
-				sender := splits[0]
-				if len(sender) < 8 {
-					continue
-				}
-
-				isDeniable := strings.Contains(sender, "deniable")
-
-				if !isDeniable {
-					sender = sender[8:len(sender)]
-					if sender == "\n" {
-						continue
-					}
-				}
-
-				if isDeniable {
-					sender = sender[9:len(sender)]
-					for _, name := range su.User.DeniableContactList {
-						if sender == name {
-							msg := Types.Msg{To: fmt.Sprintf("%v", su.User.ID), From: name, MsgContent: splits[1], IsDeniable: true}
-							go su.OnReceive(msg)
-							break
-						}
-					}
-				} else {
-					for _, name := range su.User.RegularContactList {
-						if sender == name {
-							msg := Types.Msg{To: fmt.Sprintf("%v", su.User.ID), From: name, MsgContent: splits[1], IsDeniable: false}
-							go su.OnReceive(msg)
-							break
-						}
-					}
-				}
-
-				if sender == "Unknown Sender" {
-					msg := Types.Msg{To: fmt.Sprintf("%v", su.User.ID), From: sender, MsgContent: splits[1], IsDeniable: isDeniable}
-					su.logger <- Types.MsgEvent{Msg: msg, EventType: "Receive"}
-				}
+				su.OnReceive(*msg)
 			}
 		}
 	}
@@ -282,6 +198,7 @@ func CreateCommunicationNetwork(users []*SimulatedUser, min_contact_count, max_c
 	return users
 }
 
+// Takes an array of users and return a random network of deniable contacts. These contacts are not regular contacts. Panics if min_contact_count is equal to or greater than max_contact_count.
 func CreateDeniableNetwork(users []*SimulatedUser, min_contact_count, max_contact_count int, r *rand.Rand) []*SimulatedUser {
 	max_index := len(users)
 	if max_contact_count < min_contact_count {

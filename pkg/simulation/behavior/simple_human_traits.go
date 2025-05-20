@@ -1,9 +1,13 @@
 package Behavior
 
 import (
+	Messagemaker "deniable-im/im-sim/pkg/simulation/messagemaker"
+	Messageparser "deniable-im/im-sim/pkg/simulation/messageparser"
+	Types "deniable-im/im-sim/pkg/simulation/types"
 	"fmt"
 	"math/rand"
 	"strings"
+	"time"
 
 	fuzz "github.com/google/gofuzz"
 )
@@ -16,8 +20,10 @@ type SimpleHumanTraits struct {
 	BurstModifier     float64
 	DeniableBurstSize int32
 	DeniableCount     int32
+	User              *Types.SimUser
 	nextMsgFunc       func(*SimpleHumanTraits) int
 	randomizer        *rand.Rand
+	nextSendTime      time.Time
 }
 
 func (sh *SimpleHumanTraits) GetBehaviorName() string {
@@ -37,6 +43,21 @@ func (sh *SimpleHumanTraits) GetNextMessageTime() int {
 
 	next := sh.nextMsgFunc(sh)
 
+	if sh.IsBursting() {
+		sh.nextSendTime = time.Now().Add(time.Duration(next * int(time.Millisecond)))
+		return next
+	}
+
+	//Calculate the next time a message will be sent
+	for {
+		if sh.SendRegularMsg() {
+			break
+		}
+
+		next += sh.nextMsgFunc(sh)
+	}
+
+	sh.nextSendTime = time.Now().Add(time.Duration(next * int(time.Millisecond)))
 	return next
 }
 
@@ -44,8 +65,12 @@ func (sh *SimpleHumanTraits) GetRandomizer() *rand.Rand {
 	return sh.randomizer
 }
 
-func (sh *SimpleHumanTraits) WillRespond() bool {
+func (sh *SimpleHumanTraits) WillRespond(msg Types.Msg) bool {
 	if sh == nil {
+		return false
+	}
+
+	if msg.From == "Unknown Sender" {
 		return false
 	}
 
@@ -68,15 +93,17 @@ func (sh *SimpleHumanTraits) SendDeniableMsg() bool {
 	return sh.randomizer.Float64() > (1.0 - sh.DeniableProb)
 }
 
-func (sh *SimpleHumanTraits) GetResponseTime(max int64) int {
+func (sh *SimpleHumanTraits) GetResponseTime() int {
 	if sh == nil {
 		return 0
 	}
 
-	time := int32(max)
+	delta := sh.nextSendTime.Sub(time.Now()).Milliseconds()
+
+	time := int32(delta)
 	//Clause to avoid randomizer panicking. 1 ms difference is most likely not a problem
 	if time < 1 {
-		time = 1
+		return 0
 	}
 
 	return int(sh.randomizer.Int31n((time)))
@@ -88,6 +115,61 @@ func (sh *SimpleHumanTraits) IncrementDeniableCount() {
 
 func (sh *SimpleHumanTraits) IsBursting() bool {
 	return sh.DeniableCount > 0
+}
+
+func (sh *SimpleHumanTraits) ParseIncoming(incoming string) (*Types.Msg, error) {
+	return Messageparser.DenimParser(incoming)
+}
+
+func (sh *SimpleHumanTraits) MakeReply(msg Types.Msg) Types.Msg {
+	response := Types.Msg{
+		To:         msg.From,
+		From:       msg.To,
+		IsDeniable: msg.IsDeniable,
+		MsgContent: Messagemaker.GetQuoteByIndexSafe(sh.randomizer.Int()),
+	}
+
+	if response.IsDeniable {
+		sh.IncrementDeniableCount()
+	} else {
+		sh.DeniableCount -= 1
+	}
+	return Messagemaker.MakeDenimProtocolMessage(response)
+}
+
+func (sh *SimpleHumanTraits) MakeMessages() []Types.Msg {
+	var msgs []Types.Msg
+
+	//Deniable messages are made first to allow them to piggyback on the regular messages
+	if sh.SendDeniableMsg() && len(sh.User.DeniableContactList) != 0 {
+		den_target := sh.User.DeniableContactList[sh.randomizer.Intn(len(sh.User.DeniableContactList))]
+		den_msg := Types.Msg{
+			To:         den_target,
+			From:       fmt.Sprintf("%v", sh.User.ID),
+			MsgContent: Messagemaker.GetQuoteByIndexSafe(sh.randomizer.Int()),
+			IsDeniable: true,
+		}
+
+		sh.IncrementDeniableCount()
+		msgs = append(msgs, den_msg)
+	}
+
+	//Mayhaps make more than one regular message per call? Idk anymore, all of this is horrible to simulate
+	reg_target := sh.User.RegularContactList[sh.randomizer.Intn(len(sh.User.RegularContactList))]
+	reg_msg := Types.Msg{
+		To:         reg_target,
+		From:       fmt.Sprintf("%v", sh.User.ID),
+		MsgContent: Messagemaker.GetQuoteByIndexSafe(sh.randomizer.Int()),
+		IsDeniable: false,
+	}
+
+	msgs = append(msgs, reg_msg)
+
+	for i, msg := range msgs {
+		msgs[i] = Messagemaker.MakeDenimProtocolMessage(msg)
+	}
+
+	return msgs
 }
 
 func NewSimpleHumanTraits(

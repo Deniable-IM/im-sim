@@ -1,6 +1,7 @@
 package Behavior
 
 import (
+	Types "deniable-im/im-sim/pkg/simulation/types"
 	"math/rand"
 	"testing"
 
@@ -35,12 +36,12 @@ func TestRespondLogic(t *testing.T) {
 	}
 
 	sh := SimpleHumanTraits{ResponseProb: 0}
-	if sh.WillRespond() {
+	if sh.WillRespond(Types.Msg{}) {
 		t.Error("Simple Human Behavior responds to messages while response prop = 0")
 	}
 
 	sh.ResponseProb = 1.0
-	if !sh.WillRespond() {
+	if !sh.WillRespond(Types.Msg{}) {
 		t.Error("Simple Human Behavior does not respond to messages while response prop = 1")
 	}
 

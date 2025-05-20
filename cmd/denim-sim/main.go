@@ -175,7 +175,7 @@ func main() {
 		panic(err)
 	}
 
-	user_count := 10
+	user_count := 100
 	iter_arr := make([]int, user_count)
 
 	// Setup clients
@@ -234,8 +234,8 @@ func main() {
 	options := Types.SimUserOptions{
 		Behaviour:                 Types.BehaviorType(Types.SimpleHuman),
 		MinMaxRegularProbabiity:   &Types.FloatTuple{First: 0.25, Second: 0.45},
-		MinMaxDeniableProbability: &Types.FloatTuple{First: 0.09, Second: 0.11},
-		MinMaxReplyProbability:    &Types.FloatTuple{First: 0.45, Second: 0.65},
+		MinMaxDeniableProbability: &Types.FloatTuple{First: 0.05, Second: 0.05},
+		MinMaxReplyProbability:    &Types.FloatTuple{First: 0.5, Second: 0.75},
 		BurstModifier:             &burstMod,
 		BurstSize:                 &burstSize,
 		Seed:                      &seed,
@@ -243,8 +243,8 @@ func main() {
 	options.HasNil()
 
 	users := manager.MakeSimUsersFromOptions(user_count, clientContainers, nextfunc, nil)
-	r := rand.New(rand.NewSource(6942069))
-	User.CreateCommunicationNetwork(users, 2, 3, r)
+	r := rand.New(rand.NewSource(6969420))
+	User.CreateCommunicationNetwork(users, 5, 6, r)
 	User.CreateDeniableNetwork(users, 1, 2, r)
 
 	// users := manager.MakeAliceBobDeniableBurstExampleSimulation(clientContainers, nextfunc)
