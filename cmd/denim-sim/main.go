@@ -22,7 +22,7 @@ import (
 )
 
 func main() {
-	dockerClient, err := client.NewClient()
+	dockerClient, err := client.NewClient(nil)
 	if err != nil {
 		panic(err)
 	}
