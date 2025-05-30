@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"math/rand"
-	"time"
 
 	dockerTypes "github.com/docker/docker/api/types"
 	dockerContainer "github.com/docker/docker/api/types/container"
@@ -208,8 +207,6 @@ func main() {
 	}
 
 	container.StartContainers(clientContainers)
-
-	time.Sleep(5 * time.Second) //IMPORTANT SLEEP FOR ARTHUR'S MACHINE
 
 	networkName := fmt.Sprintf("dm-%v", networkIMvlan.ID[:12])
 

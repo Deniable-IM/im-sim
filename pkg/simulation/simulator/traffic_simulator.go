@@ -4,14 +4,20 @@ import (
 	SimLogger "deniable-im/im-sim/pkg/simulation/simulator/sim_logger"
 	SimulatedUser "deniable-im/im-sim/pkg/simulation/simulator/user"
 	"deniable-im/im-sim/pkg/tshark"
+	"sync"
 	"time"
 )
 
 // Should probably return some kind of state, idk
 func SimulateTraffic(users []*SimulatedUser.SimulatedUser, simTime int64, networkInterface string) {
-	end_signal := make(chan bool)
+	var wg sync.WaitGroup
+	poolSize := 10
+
+	startChan := make(chan struct{})
+	stopChan := make(chan bool)
+
 	var logger SimLogger.SimLogger
-	msgChan, err := logger.InitLogging(end_signal)
+	msgChan, err := logger.InitLogging(stopChan)
 	if err != nil {
 		return
 	}
@@ -33,15 +39,28 @@ func SimulateTraffic(users []*SimulatedUser.SimulatedUser, simTime int64, networ
 		return
 	}
 	defer cmd.Wait()
-	time.Sleep(2 * time.Second) //Allows tshark to start up properly and start packet capture
 
-	for _, user := range users {
-		go user.StartMessaging(end_signal, msgChan)
+	for i, user := range users {
+		wg.Add(1)
+		go func(user *SimulatedUser.SimulatedUser) {
+			defer wg.Done()
+			go user.StartMessaging(startChan, stopChan, msgChan)
+			time.Sleep(500 * time.Millisecond)
+		}(user)
+		if i%poolSize == 0 {
+			wg.Wait()
+		}
 	}
+	wg.Wait()
+
+	// Clients now start messaging
+	close(startChan)
+
+	// Duration of simulation
 	time.Sleep(time.Duration((simTime * int64(time.Second))))
 
-	//Kill goroutines
-	end_signal <- true
+	// Stop all clients
+	stopChan <- true
 
 	time.Sleep(time.Duration(5 * time.Second))
 
