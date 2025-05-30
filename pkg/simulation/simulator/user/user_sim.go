@@ -22,7 +22,7 @@ type SimulatedUser struct {
 	Process  *Process.Process
 }
 
-func (su *SimulatedUser) StartMessaging(stop chan bool, logger chan Types.MsgEvent) {
+func (su *SimulatedUser) StartMessaging(start chan struct{}, stop chan bool, logger chan Types.MsgEvent) {
 	var wg sync.WaitGroup
 
 	if su == nil {
@@ -42,7 +42,8 @@ func (su *SimulatedUser) StartMessaging(stop chan bool, logger chan Types.MsgEve
 	su.Process = res
 	defer su.Process.Close()
 
-	time.Sleep(2000 * time.Millisecond)
+	// Await other clients
+	<-start
 
 	wg.Add(1)
 	go func() {
