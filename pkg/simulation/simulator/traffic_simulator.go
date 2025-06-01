@@ -55,11 +55,14 @@ func SimulateTraffic(users []*SimulatedUser.SimulatedUser, simTime int64, networ
 
 	println("Press enter to begin client messaging")
 	fmt.Scanln()
+
+	println("Starting Tshark")
 	cmd, cerr := tshark.RunTshark(networkInterface, logger.Dir, simTime+3)
 	if cerr != nil {
 		return
 	}
 	defer cmd.Wait()
+	time.Sleep(10 * time.Second)
 
 	// Clients now start messaging
 	close(startChan)
