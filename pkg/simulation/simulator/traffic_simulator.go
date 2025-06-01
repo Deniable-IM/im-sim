@@ -3,6 +3,8 @@ package Simulator
 import (
 	SimLogger "deniable-im/im-sim/pkg/simulation/simulator/sim_logger"
 	SimulatedUser "deniable-im/im-sim/pkg/simulation/simulator/user"
+	"fmt"
+
 	"deniable-im/im-sim/pkg/tshark"
 	"sync"
 	"time"
@@ -11,7 +13,7 @@ import (
 // Should probably return some kind of state, idk
 func SimulateTraffic(users []*SimulatedUser.SimulatedUser, simTime int64, networkInterface string) {
 	var wg sync.WaitGroup
-	poolSize := 10
+	poolSize := 50
 
 	startChan := make(chan struct{})
 	stopChan := make(chan bool)
@@ -34,24 +36,30 @@ func SimulateTraffic(users []*SimulatedUser.SimulatedUser, simTime int64, networ
 	}
 	logger.LogSimUsers(users_to_log)
 
-	cmd, cerr := tshark.RunTshark(networkInterface, logger.Dir, simTime+3)
-	if cerr != nil {
-		return
-	}
-	defer cmd.Wait()
+	println("Initializing clients")
+	time.Sleep(10 * time.Second)
 
 	for i, user := range users {
 		wg.Add(1)
 		go func(user *SimulatedUser.SimulatedUser) {
 			defer wg.Done()
 			go user.StartMessaging(startChan, stopChan, msgChan)
-			time.Sleep(500 * time.Millisecond)
 		}(user)
-		if i%poolSize == 0 {
+		if (i+1)%poolSize == 0 {
 			wg.Wait()
+			time.Sleep(10 * time.Second)
 		}
 	}
 	wg.Wait()
+	time.Sleep(10 * time.Second)
+
+	println("Press enter to begin client messaging")
+	fmt.Scanln()
+	cmd, cerr := tshark.RunTshark(networkInterface, logger.Dir, simTime+3)
+	if cerr != nil {
+		return
+	}
+	defer cmd.Wait()
 
 	// Clients now start messaging
 	close(startChan)
