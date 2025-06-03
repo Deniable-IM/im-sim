@@ -75,7 +75,7 @@ func (su *SimulatedUser) SendMessage(msg Types.Msg, sendSem chan struct{}) {
 	}
 
 	sendSem <- struct{}{}
-	time.Sleep(50 * time.Millisecond)
+	time.Sleep(100 * time.Millisecond)
 	defer func() { <-sendSem }()
 
 	err := su.Process.Cmd([]byte(fmt.Sprintf("%v\n", msg.MsgContent)))

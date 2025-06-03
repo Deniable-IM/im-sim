@@ -4,6 +4,7 @@ import (
 	SimLogger "deniable-im/im-sim/pkg/simulation/simulator/sim_logger"
 	SimulatedUser "deniable-im/im-sim/pkg/simulation/simulator/user"
 	"fmt"
+	"runtime"
 
 	"deniable-im/im-sim/pkg/tshark"
 	"sync"
@@ -18,7 +19,8 @@ func SimulateTraffic(users []*SimulatedUser.SimulatedUser, simTime int64, networ
 	startChan := make(chan struct{})
 	stopChan := make(chan bool)
 
-	sendSem := make(chan struct{}, 5)
+	threads := runtime.NumCPU()
+	sendSem := make(chan struct{}, threads)
 
 	var logger SimLogger.SimLogger
 	msgChan, err := logger.InitLogging(stopChan)
@@ -55,7 +57,7 @@ func SimulateTraffic(users []*SimulatedUser.SimulatedUser, simTime int64, networ
 	wg.Wait()
 	time.Sleep(10 * time.Second)
 
-	println("Press enter to begin client messaging")
+	fmt.Printf("Press enter to begin client messaging on %d threads\n", threads)
 	fmt.Scanln()
 
 	println("Starting Tshark")
