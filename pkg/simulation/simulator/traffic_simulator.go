@@ -18,6 +18,8 @@ func SimulateTraffic(users []*SimulatedUser.SimulatedUser, simTime int64, networ
 	startChan := make(chan struct{})
 	stopChan := make(chan bool)
 
+	sendSem := make(chan struct{}, 5)
+
 	var logger SimLogger.SimLogger
 	msgChan, err := logger.InitLogging(stopChan)
 	if err != nil {
@@ -43,7 +45,7 @@ func SimulateTraffic(users []*SimulatedUser.SimulatedUser, simTime int64, networ
 		wg.Add(1)
 		go func(user *SimulatedUser.SimulatedUser) {
 			defer wg.Done()
-			go user.StartMessaging(startChan, stopChan, msgChan)
+			go user.StartMessaging(startChan, stopChan, sendSem, msgChan)
 		}(user)
 		if (i+1)%poolSize == 0 {
 			wg.Wait()
@@ -62,7 +64,7 @@ func SimulateTraffic(users []*SimulatedUser.SimulatedUser, simTime int64, networ
 		return
 	}
 	defer cmd.Wait()
-	time.Sleep(10 * time.Second)
+	time.Sleep(1 * time.Second)
 
 	// Clients now start messaging
 	close(startChan)

@@ -22,7 +22,7 @@ type SimulatedUser struct {
 	Process  *Process.Process
 }
 
-func (su *SimulatedUser) StartMessaging(start chan struct{}, stop chan bool, logger chan Types.MsgEvent) {
+func (su *SimulatedUser) StartMessaging(start chan struct{}, stop chan bool, sendSem chan struct{}, logger chan Types.MsgEvent) {
 	var wg sync.WaitGroup
 
 	if su == nil {
@@ -48,7 +48,7 @@ func (su *SimulatedUser) StartMessaging(start chan struct{}, stop chan bool, log
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		su.MessageListener()
+		su.MessageListener(sendSem)
 	}()
 
 	for {
@@ -63,16 +63,20 @@ func (su *SimulatedUser) StartMessaging(start chan struct{}, stop chan bool, log
 			time.Sleep(dur)
 			msgs := su.Behavior.MakeMessages()
 			for _, msg := range msgs {
-				su.SendMessage(msg)
+				su.SendMessage(msg, sendSem)
 			}
 		}
 	}
 }
 
-func (su *SimulatedUser) SendMessage(msg Types.Msg) {
+func (su *SimulatedUser) SendMessage(msg Types.Msg, sendSem chan struct{}) {
 	if su == nil {
 		return
 	}
+
+	sendSem <- struct{}{}
+	time.Sleep(50 * time.Millisecond)
+	defer func() { <-sendSem }()
 
 	err := su.Process.Cmd([]byte(fmt.Sprintf("%v\n", msg.MsgContent)))
 	if err != nil {
@@ -82,7 +86,7 @@ func (su *SimulatedUser) SendMessage(msg Types.Msg) {
 	su.logger <- Types.MsgEvent{Msg: msg, EventType: "Send"}
 }
 
-func (su *SimulatedUser) OnReceive(msg Types.Msg) {
+func (su *SimulatedUser) OnReceive(msg Types.Msg, sendSem chan struct{}) {
 	if su == nil {
 		return
 	}
@@ -96,10 +100,10 @@ func (su *SimulatedUser) OnReceive(msg Types.Msg) {
 	sleep_time := su.Behavior.GetResponseTime()
 	time.Sleep(time.Duration(sleep_time * int(time.Millisecond)))
 
-	su.SendMessage(res)
+	su.SendMessage(res, sendSem)
 }
 
-func (su *SimulatedUser) MessageListener() {
+func (su *SimulatedUser) MessageListener(sendSem chan struct{}) {
 	for {
 		select {
 		case <-su.stopChan:
@@ -126,7 +130,7 @@ func (su *SimulatedUser) MessageListener() {
 					EventType: "Receive",
 				}
 
-				su.OnReceive(*msg)
+				su.OnReceive(*msg, sendSem)
 			}
 		}
 	}
