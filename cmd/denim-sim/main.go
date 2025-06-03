@@ -212,7 +212,7 @@ func main() {
 
 	//Setup for creating users
 	nextfunc := func(sht *Behavior.SimpleHumanTraits) int {
-		var next float64 = 10000 //Max time in milliseconds
+		var next float64 = 1000 //Max time in milliseconds
 		if sht.IsBursting() {
 			next = next * sht.BurstModifier
 			sht.DeniableCount -= 1
@@ -224,7 +224,7 @@ func main() {
 	}
 
 	burstMod := 0.1
-	burstSize := 10
+	burstSize := 5
 	seed := int64(123456789)
 
 	//Use this options struct if you want custom configurations. Replace nil in users assignment to switch from default generation to custom options
@@ -241,7 +241,7 @@ func main() {
 
 	users := manager.MakeSimUsersFromOptions(user_count, clientContainers, nextfunc, nil)
 	r := rand.New(rand.NewSource(6969420))
-	User.CreateCommunicationNetwork(users, 5, 6, r)
+	User.CreateCommunicationNetwork(users, 3, 4, r)
 	User.CreateDeniableNetwork(users, 1, 2, r)
 
 	// users := manager.MakeAliceBobDeniableBurstExampleSimulation(clientContainers, nextfunc)
