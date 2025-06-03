@@ -247,5 +247,5 @@ func main() {
 	// users := manager.MakeAliceBobDeniableBurstExampleSimulation(clientContainers, nextfunc)
 
 	println("Starting simulation")
-	Simulator.SimulateTraffic(users, 3600, networkName)
+	Simulator.SimulateTraffic(users, 8*3600, networkName)
 }
