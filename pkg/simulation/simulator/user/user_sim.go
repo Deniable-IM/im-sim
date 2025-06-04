@@ -22,7 +22,7 @@ type SimulatedUser struct {
 	Process  *Process.Process
 }
 
-func (su *SimulatedUser) StartMessaging(start chan struct{}, stop chan bool, sendSem chan struct{}, logger chan Types.MsgEvent) {
+func (su *SimulatedUser) StartMessaging(start chan struct{}, stop chan bool, logger chan Types.MsgEvent) {
 	var wg sync.WaitGroup
 
 	if su == nil {
@@ -48,7 +48,7 @@ func (su *SimulatedUser) StartMessaging(start chan struct{}, stop chan bool, sen
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		su.MessageListener(sendSem)
+		su.MessageListener()
 	}()
 
 	for {
@@ -63,20 +63,16 @@ func (su *SimulatedUser) StartMessaging(start chan struct{}, stop chan bool, sen
 			time.Sleep(dur)
 			msgs := su.Behavior.MakeMessages()
 			for _, msg := range msgs {
-				su.SendMessage(msg, sendSem)
+				su.SendMessage(msg)
 			}
 		}
 	}
 }
 
-func (su *SimulatedUser) SendMessage(msg Types.Msg, sendSem chan struct{}) {
+func (su *SimulatedUser) SendMessage(msg Types.Msg) {
 	if su == nil {
 		return
 	}
-
-	sendSem <- struct{}{}
-	time.Sleep(100 * time.Millisecond)
-	defer func() { <-sendSem }()
 
 	err := su.Process.Cmd([]byte(fmt.Sprintf("%v\n", msg.MsgContent)))
 	if err != nil {
@@ -86,7 +82,7 @@ func (su *SimulatedUser) SendMessage(msg Types.Msg, sendSem chan struct{}) {
 	su.logger <- Types.MsgEvent{Msg: msg, EventType: "Send"}
 }
 
-func (su *SimulatedUser) OnReceive(msg Types.Msg, sendSem chan struct{}) {
+func (su *SimulatedUser) OnReceive(msg Types.Msg) {
 	if su == nil {
 		return
 	}
@@ -100,10 +96,10 @@ func (su *SimulatedUser) OnReceive(msg Types.Msg, sendSem chan struct{}) {
 	sleep_time := su.Behavior.GetResponseTime()
 	time.Sleep(time.Duration(sleep_time * int(time.Millisecond)))
 
-	su.SendMessage(res, sendSem)
+	su.SendMessage(res)
 }
 
-func (su *SimulatedUser) MessageListener(sendSem chan struct{}) {
+func (su *SimulatedUser) MessageListener() {
 	for {
 		select {
 		case <-su.stopChan:
@@ -130,7 +126,7 @@ func (su *SimulatedUser) MessageListener(sendSem chan struct{}) {
 					EventType: "Receive",
 				}
 
-				su.OnReceive(*msg, sendSem)
+				su.OnReceive(*msg)
 			}
 		}
 	}

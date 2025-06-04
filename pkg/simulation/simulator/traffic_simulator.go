@@ -19,9 +19,6 @@ func SimulateTraffic(users []*SimulatedUser.SimulatedUser, simTime int64, networ
 	startChan := make(chan struct{})
 	stopChan := make(chan bool)
 
-	threads := runtime.NumCPU()
-	sendSem := make(chan struct{}, threads)
-
 	var logger SimLogger.SimLogger
 	msgChan, err := logger.InitLogging(stopChan)
 	if err != nil {
@@ -47,7 +44,7 @@ func SimulateTraffic(users []*SimulatedUser.SimulatedUser, simTime int64, networ
 		wg.Add(1)
 		go func(user *SimulatedUser.SimulatedUser) {
 			defer wg.Done()
-			go user.StartMessaging(startChan, stopChan, sendSem, msgChan)
+			go user.StartMessaging(startChan, stopChan, msgChan)
 		}(user)
 		if (i+1)%poolSize == 0 {
 			wg.Wait()
@@ -57,7 +54,7 @@ func SimulateTraffic(users []*SimulatedUser.SimulatedUser, simTime int64, networ
 	wg.Wait()
 	time.Sleep(10 * time.Second)
 
-	fmt.Printf("Press enter to begin client messaging on %d threads\n", threads)
+	fmt.Printf("Press enter to begin client messaging on %d threads\n", runtime.NumCPU())
 	fmt.Scanln()
 
 	println("Starting Tshark")

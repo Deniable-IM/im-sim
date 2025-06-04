@@ -4,7 +4,13 @@ import (
 	"bytes"
 	"fmt"
 	"net"
+	"runtime"
 	"sync"
+	"time"
+)
+
+var (
+	processSem chan struct{} = make(chan struct{}, runtime.NumCPU())
 )
 
 type Process struct {
@@ -18,6 +24,10 @@ func NewProcess(conn net.Conn, reader *bytes.Buffer) *Process {
 }
 
 func (process *Process) Cmd(cmd []byte) error {
+	processSem <- struct{}{}
+	time.Sleep(100 * time.Millisecond)
+	defer func() { <-processSem }()
+
 	process.Mu.Lock()
 	defer process.Mu.Unlock()
 
@@ -29,6 +39,10 @@ func (process *Process) Cmd(cmd []byte) error {
 }
 
 func (process *Process) Read(delim byte) []string {
+	processSem <- struct{}{}
+	time.Sleep(100 * time.Millisecond)
+	defer func() { <-processSem }()
+
 	process.Mu.Lock()
 	defer process.Mu.Unlock()
 
