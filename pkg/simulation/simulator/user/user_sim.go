@@ -36,7 +36,7 @@ func (su *SimulatedUser) StartMessaging(start chan struct{}, stop chan bool, log
 
 	res, err := su.Client.Exec(args, true)
 	if err != nil {
-		panic(err)
+		panic(fmt.Errorf("SimulatedUser StartMessaging failed to start process: %w.", err))
 	}
 
 	su.Process = res
@@ -55,7 +55,10 @@ func (su *SimulatedUser) StartMessaging(start chan struct{}, stop chan bool, log
 		select {
 		case <-su.stopChan:
 			wg.Wait()
-			su.Process.Cmd([]byte("quit\n"))
+			err := su.Process.Cmd([]byte("quit\n"))
+			if err != nil {
+				panic(fmt.Errorf("Sim done but failed to send quit: %w.", err))
+			}
 			return
 		default:
 			time_to_next_message := su.Behavior.GetNextMessageTime()
@@ -76,7 +79,7 @@ func (su *SimulatedUser) SendMessage(msg Types.Msg) {
 
 	err := su.Process.Cmd([]byte(fmt.Sprintf("%v\n", msg.MsgContent)))
 	if err != nil {
-		panic(err)
+		panic(fmt.Errorf("SimulatedUser SendMessage failed: %w.", err))
 	}
 
 	su.logger <- Types.MsgEvent{Msg: msg, EventType: "Send"}
@@ -109,7 +112,7 @@ func (su *SimulatedUser) MessageListener() {
 
 			err := su.Process.Cmd([]byte("read\n"))
 			if err != nil {
-				panic(err)
+				panic(fmt.Errorf("SimulatedUser MessageListener failed: %w.", err))
 			}
 
 			lines := su.Process.Read(byte('\n'))
