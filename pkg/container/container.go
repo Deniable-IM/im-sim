@@ -332,7 +332,12 @@ func (container *Container) Exec(commands []string, logOutput bool) (*process.Pr
 
 	if logOutput {
 		go logger.LogContainerExec(tee, commands, container.Name)
+	} else {
+		go func() {
+			io.Copy(io.Discard, tee)
+		}()
 	}
 
-	return process.NewProcess(res.Conn, &buffer), nil
+	execFunc := container.Exec
+	return process.NewProcess(res.Conn, &buffer, commands, execFunc), nil
 }

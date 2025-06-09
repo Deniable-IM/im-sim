@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"math/rand"
-	"time"
 
 	dockerTypes "github.com/docker/docker/api/types"
 	dockerContainer "github.com/docker/docker/api/types/container"
@@ -209,8 +208,6 @@ func main() {
 
 	container.StartContainers(clientContainers)
 
-	time.Sleep(5 * time.Second) //IMPORTANT SLEEP FOR ARTHUR'S MACHINE
-
 	networkName := fmt.Sprintf("dm-%v", networkIMvlan.ID[:12])
 
 	//Setup for creating users
@@ -227,7 +224,7 @@ func main() {
 	}
 
 	burstMod := 0.1
-	burstSize := 10
+	burstSize := 5
 	seed := int64(123456789)
 
 	//Use this options struct if you want custom configurations. Replace nil in users assignment to switch from default generation to custom options
@@ -244,11 +241,11 @@ func main() {
 
 	users := manager.MakeSimUsersFromOptions(user_count, clientContainers, nextfunc, nil)
 	r := rand.New(rand.NewSource(6969420))
-	User.CreateCommunicationNetwork(users, 5, 6, r)
+	User.CreateCommunicationNetwork(users, 3, 4, r)
 	User.CreateDeniableNetwork(users, 1, 2, r)
 
 	// users := manager.MakeAliceBobDeniableBurstExampleSimulation(clientContainers, nextfunc)
 
 	println("Starting simulation")
-	Simulator.SimulateTraffic(users, 3600, networkName)
+	Simulator.SimulateTraffic(users, 8*3600, networkName)
 }

@@ -3,38 +3,55 @@ package process
 import (
 	"bytes"
 	"fmt"
+	"log"
 	"net"
+	"runtime"
 	"sync"
 )
 
+var (
+	processSem chan struct{} = make(chan struct{}, runtime.NumCPU())
+)
+
 type Process struct {
-	conn   net.Conn
-	Buffer *bytes.Buffer
-	Mu     sync.Mutex
+	conn     net.Conn
+	buffer   *bytes.Buffer
+	commands []string
+	execFunc func([]string, bool) (*Process, error)
+	mu       sync.Mutex
 }
 
-func NewProcess(conn net.Conn, reader *bytes.Buffer) *Process {
-	return &Process{conn, reader, sync.Mutex{}}
+func NewProcess(conn net.Conn, reader *bytes.Buffer, commands []string, execFunc func([]string, bool) (*Process, error)) *Process {
+	return &Process{conn, reader, commands, execFunc, sync.Mutex{}}
 }
 
 func (process *Process) Cmd(cmd []byte) error {
-	process.Mu.Lock()
-	defer process.Mu.Unlock()
+	processSem <- struct{}{}
+	defer func() { <-processSem }()
+
+	process.mu.Lock()
+	defer process.mu.Unlock()
 
 	_, err := process.conn.Write(cmd)
 	if err != nil {
-		return fmt.Errorf("Process failed to write cmd: %w.", err)
+		err := process.retry(cmd)
+		if err != nil {
+			return fmt.Errorf("Failed to retry process: %w.", err)
+		}
 	}
 	return nil
 }
 
 func (process *Process) Read(delim byte) []string {
-	process.Mu.Lock()
-	defer process.Mu.Unlock()
+	processSem <- struct{}{}
+	defer func() { <-processSem }()
+
+	process.mu.Lock()
+	defer process.mu.Unlock()
 
 	lines := []string{}
-	for process.Buffer.Len() != 0 {
-		line, err := process.Buffer.ReadString(delim)
+	for process.buffer.Len() != 0 {
+		line, err := process.buffer.ReadString(delim)
 		if len(line) > 1 {
 			lines = append(lines, line)
 		}
@@ -51,5 +68,28 @@ func (process *Process) Close() error {
 	if process.conn != nil {
 		return process.conn.Close()
 	}
+	return nil
+}
+
+func (process *Process) retry(cmd []byte) error {
+	process.Close()
+
+	newProcess, err := process.execFunc(process.commands, true)
+	if err != nil {
+		return fmt.Errorf("Failed to create new process: %w.", err)
+	}
+	log.Printf("New process created: %v.\n", process.commands)
+
+	process.conn = newProcess.conn
+	process.buffer = newProcess.buffer
+	process.commands = newProcess.commands
+	process.execFunc = newProcess.execFunc
+
+	_, err = process.conn.Write(cmd)
+	if err != nil {
+		return fmt.Errorf("New process failed to write: %w.", err)
+	}
+	log.Printf("New process write.")
+
 	return nil
 }
