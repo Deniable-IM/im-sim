@@ -15,7 +15,7 @@ var (
 
 type Process struct {
 	conn     net.Conn
-	Buffer   *bytes.Buffer
+	buffer   *bytes.Buffer
 	commands []string
 	execFunc func([]string, bool) (*Process, error)
 	mu       sync.Mutex
@@ -50,8 +50,8 @@ func (process *Process) Read(delim byte) []string {
 	defer process.mu.Unlock()
 
 	lines := []string{}
-	for process.Buffer.Len() != 0 {
-		line, err := process.Buffer.ReadString(delim)
+	for process.buffer.Len() != 0 {
+		line, err := process.buffer.ReadString(delim)
 		if len(line) > 1 {
 			lines = append(lines, line)
 		}
@@ -81,7 +81,7 @@ func (process *Process) retry(cmd []byte) error {
 	log.Printf("New process created: %v.\n", process.commands)
 
 	process.conn = newProcess.conn
-	process.Buffer = newProcess.Buffer
+	process.buffer = newProcess.buffer
 	process.commands = newProcess.commands
 	process.execFunc = newProcess.execFunc
 
