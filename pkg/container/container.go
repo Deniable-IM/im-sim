@@ -62,14 +62,16 @@ func NewContainer(client *client.Client, image string, name string, options *Opt
 }
 
 func NewContainerSlice(client *client.Client, images []types.Pair[string, string], options *Options) ([]*Container, error) {
-	imagesLen := len(images)
+	var wg sync.WaitGroup
 
 	const poolSize = 50
 	results := make(chan *Container, poolSize)
-	var wg sync.WaitGroup
-	errc := make(chan error, len(images))
+
+	imagesLen := len(images)
+	errc := make(chan error, imagesLen)
 
 	reader, writer := io.Pipe()
+	defer reader.Close()
 	go func() {
 		logger.LogContainerSlice(reader)
 	}()
@@ -119,18 +121,17 @@ func NewContainerSlice(client *client.Client, images []types.Pair[string, string
 		}
 	}
 
-	reader.Close()
-
 	return containers, nil
 }
 
 func StartContainers(containers []*Container) {
-	containersLen := len(containers)
-	const poolSize = 50
 	var wg sync.WaitGroup
+
+	containersLen := len(containers)
 	errc := make(chan error, len(containers))
 
 	reader, writer := io.Pipe()
+	defer reader.Close()
 	go func() {
 		logger.LogStartContainers(reader)
 	}()
@@ -138,9 +139,9 @@ func StartContainers(containers []*Container) {
 	for _, container := range containers {
 		wg.Add(1)
 
-		go func(c *Container) {
+		go func(container *Container) {
 			defer wg.Done()
-			if err := c.start(); err != nil {
+			if err := container.start(); err != nil {
 				errc <- err
 			}
 
@@ -164,8 +165,6 @@ func StartContainers(containers []*Container) {
 			panic(err)
 		}
 	}
-
-	reader.Close()
 }
 
 func (container *Container) start() error {
@@ -325,7 +324,7 @@ func (container *Container) Exec(commands []string, logOutput bool) (*process.Pr
 	if err != nil {
 		return nil, fmt.Errorf("Container Exec failed to attach: %w.", err)
 	}
-	res.Conn.SetReadDeadline(time.Time{})
+	res.Conn.SetDeadline(time.Time{})
 	var buffer bytes.Buffer
 
 	tee := io.TeeReader(res.Reader, &buffer)
